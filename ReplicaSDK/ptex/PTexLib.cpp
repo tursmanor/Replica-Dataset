@@ -11,7 +11,11 @@
 #include <unistd.h>
 #include <experimental/filesystem>
 #include <fstream>
+#include <memory>
 #include <unordered_map>
+#include "openglshape.h"
+#include "sphere.h"
+#include "ShaderAttribLocations.h"
 
 PTexMesh::PTexMesh(const std::string& meshFile, const std::string& atlasFolder, bool rS) {
   // Check everything exists
@@ -50,10 +54,16 @@ PTexMesh::PTexMesh(const std::string& meshFile, const std::string& atlasFolder, 
   ASSERT(pangolin::FileExists(shadir), "Shader directory not found!");
 
   if(renderSpherical){
-    shader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-ptex-spherical.vert", {}, {shadir});
-    shader.AddShaderFromFile(pangolin::GlSlGeometryShader, shadir + "/mesh-ptex-spherical.geom", {}, {shadir});
-    shader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-ptex.frag", {}, {shadir});
+    // shader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-ptex-spherical.vert", {}, {shadir});
+    // shader.AddShaderFromFile(pangolin::GlSlGeometryShader, shadir + "/mesh-ptex-spherical.geom", {}, {shadir});
+    // shader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-ptex.frag", {}, {shadir});
+    // shader.Link();
+
+    shader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/shader.vert", {}, {shadir});
+    shader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/shader.frag", {}, {shadir});
+    // shader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-ptex.frag", {}, {shadir});
     shader.Link();
+
 
   }
   else{
@@ -111,46 +121,58 @@ void PTexMesh::RenderSubMesh(
   ASSERT(subMesh < meshes.size());
   Mesh& mesh = *meshes[subMesh];
 
+  // shader.SetUniform("tileSize", (int)tileSize);
+  // shader.SetUniform("exposure", exposure);
+  // shader.SetUniform("gamma", 1.0f / gamma);
+  // shader.SetUniform("saturation", saturation);
+  // shader.SetUniform("clipPlane", clipPlane(0), clipPlane(1), clipPlane(2), clipPlane(3));
+  //
+  // shader.SetUniform("widthInTiles", int(mesh.atlas.width / tileSize));
+  //
+  // if(renderSpherical){
+  //   shader.SetUniform("MV", cam.GetModelViewMatrix());
+  //   shader.SetUniform("baseline", baseline);
+  //   shader.SetUniform("leftRight", lrC);
+  //
+  // }
+
+
+  // glActiveTexture(GL_TEXTURE0);
+  // mesh.atlas.Bind();
+  //
+  // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, mesh.abo.bo);
+  //
+  // mesh.vbo.Bind();
+  // glVertexAttribPointer(0, mesh.vbo.count_per_element, mesh.vbo.datatype, GL_FALSE, 0, 0);
+  // glEnableVertexAttribArray(0);
+  // mesh.vbo.Unbind();
+  //
+  // mesh.ibo.Bind();
+  // // using GL_LINES_ADJACENCY here to send quads to geometry shader
+  // glDrawElements(GL_LINES_ADJACENCY, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
+  // mesh.ibo.Unbind();
+  //
+  // glDisableVertexAttribArray(0);
+  // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+  //
+  // glActiveTexture(GL_TEXTURE0);
+  // mesh.atlas.Unbind();
+
+
+  std::vector<GLfloat> squareData = SPHERE_VERTEX_POSITIONS;
+
+  m_square = std::unique_ptr<OpenGLShape>(new OpenGLShape());
+  m_square->setVertexData(&squareData[0], squareData.size(), VBO::GEOMETRY_LAYOUT::LAYOUT_TRIANGLE_STRIP, NUM_SPHERE_VERTICES);
+  m_square->setAttribute(ShaderAttrib::POSITION, 3, 0, VBOAttribMarker::DATA_TYPE::FLOAT, false);
+  m_square->buildVAO();
+
   shader.Bind();
   shader.SetUniform("MVP", cam.GetProjectionModelViewMatrix());
-  shader.SetUniform("tileSize", (int)tileSize);
-  shader.SetUniform("exposure", exposure);
-  shader.SetUniform("gamma", 1.0f / gamma);
-  shader.SetUniform("saturation", saturation);
-  shader.SetUniform("clipPlane", clipPlane(0), clipPlane(1), clipPlane(2), clipPlane(3));
 
-  shader.SetUniform("widthInTiles", int(mesh.atlas.width / tileSize));
-
-  if(renderSpherical){
-    shader.SetUniform("MV", cam.GetModelViewMatrix());
-    shader.SetUniform("baseline", baseline);
-    shader.SetUniform("leftRight", lrC);
-
-  }
-
-
-  glActiveTexture(GL_TEXTURE0);
-  mesh.atlas.Bind();
-
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, mesh.abo.bo);
-
-  mesh.vbo.Bind();
-  glVertexAttribPointer(0, mesh.vbo.count_per_element, mesh.vbo.datatype, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
-  mesh.vbo.Unbind();
-
-  mesh.ibo.Bind();
-  // using GL_LINES_ADJACENCY here to send quads to geometry shader
-  glDrawElements(GL_LINES_ADJACENCY, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
-  mesh.ibo.Unbind();
-
-  glDisableVertexAttribArray(0);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-
-  glActiveTexture(GL_TEXTURE0);
-  mesh.atlas.Unbind();
+  m_square->draw();
 
   shader.Unbind();
+
 }
 
 // render depth

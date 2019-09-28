@@ -12,6 +12,8 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
+class OpenGLShape;
+
 class PTexMesh {
  public:
   PTexMesh(const std::string& meshFile, const std::string& atlasFolder, bool renderSpherical);
@@ -95,4 +97,6 @@ class PTexMesh {
   static constexpr int FACE_MASK = 0x3FFFFFFF;
 
   std::vector<std::unique_ptr<Mesh>> meshes;
+  std::unique_ptr<OpenGLShape> m_square;
+
 };

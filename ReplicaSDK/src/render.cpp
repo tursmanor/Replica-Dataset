@@ -573,12 +573,12 @@ int main(int argc, char* argv[]) {
           std::cout.flush();
           // Render
           frameBuffer.Bind();
-          glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+          glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
           glPushAttrib(GL_VIEWPORT_BIT);
           glViewport(0, 0, width, height);
           glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-          glEnable(GL_CULL_FACE);
+          // glEnable(GL_CULL_FACE);
 
           ptexMesh.SetExposure(0.01);
           ptexMesh.SetBaseline(basel);
@@ -588,7 +588,7 @@ int main(int argc, char* argv[]) {
             ptexMesh.Render(s_cam,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f));
           }
 
-          glDisable(GL_CULL_FACE);
+          // glDisable(GL_CULL_FACE);
 
           glPopAttrib(); //GL_VIEWPORT_BIT
           frameBuffer.Unbind();
@@ -614,7 +614,7 @@ int main(int argc, char* argv[]) {
           if(spherical){
 
             char equirectFilename[1000];
-            snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/test-data-tgt-depth/%s_%04zu_pos%01zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
+            snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/test-insert-objects/%s_%04zu_pos%01zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
 
             pangolin::SaveImage(
                 image.UnsafeReinterpret<uint8_t>(),
