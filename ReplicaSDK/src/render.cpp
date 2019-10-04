@@ -535,9 +535,10 @@ int main(int argc, char* argv[]) {
   //
   // }
 
-  // rendering the dataset (ods pair + double equirect pair + interpolation + extrapolation + forward extrapolation)
+  // rendering the perspective dataset
   for(size_t j=0; j<numSpots;j++){
-      size_t numFrames = 1;
+      //for each position
+      size_t numFrames = 6; //cubemap
 
       //get the modelview matrix with the navigable camera position specified in the text file
       Eigen::Matrix4d spot_cam_to_world = s_cam.GetModelViewMatrix();
@@ -546,6 +547,7 @@ int main(int argc, char* argv[]) {
       // eye:              0   1    0     1      0      1     0
       // baseline radius:  bl  bl inter  inter extra1 extra2  0
       for(int k =0; k<7;k++){
+        //for each src/ref/tgt position in current spot
 
         int eye = k%2;
         if(k==6){
@@ -566,6 +568,7 @@ int main(int argc, char* argv[]) {
         }
 
         for (size_t i = 0; i < numFrames; i++) {
+          //for each face of the cubemap
 
           auto frame_start = high_resolution_clock::now();
 
@@ -611,28 +614,15 @@ int main(int argc, char* argv[]) {
 
           // Download and save
           render.Download(image.ptr, GL_RGB, GL_UNSIGNED_BYTE);
-          if(spherical){
 
-            char equirectFilename[1000];
-            snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/test-data-tgt-depth/%s_%04zu_pos%01zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
 
-            pangolin::SaveImage(
-                image.UnsafeReinterpret<uint8_t>(),
-                pangolin::PixelFormatFromString("RGB24"),
-                std::string(equirectFilename), 100.0);
+          char cmapFilename[1000];
+          snprintf(cmapFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/cubemapData/%s_%04zu_pos%01zu.png",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
 
-          }
-          else{
-
-            char cmapFilename[1000];
-            snprintf(cmapFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/cubemapData/%s_%04zu_pos%01zu.png",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
-
-            pangolin::SaveImage(
-                image.UnsafeReinterpret<uint8_t>(),
-                pangolin::PixelFormatFromString("RGB24"),
-                std::string(cmapFilename));
-
-          }
+          pangolin::SaveImage(
+              image.UnsafeReinterpret<uint8_t>(),
+              pangolin::PixelFormatFromString("RGB24"),
+              std::string(cmapFilename));
 
           auto frame_stop = high_resolution_clock::now();
           auto frame_duration = duration_cast<microseconds>(frame_stop - frame_start);
