@@ -4,11 +4,10 @@
 layout(location = 0) out vec4 FragColor;
 uniform float scale;
 
-//in layout(location = 1) float vdepth;
-in float vdepth;
+in float depth;
 
 void main()
 {
-    FragColor = vec4(vdepth.xxx * 1.0f/16.0f, 1.0f);
+    FragColor = vec4(depth.xxx * 1/16.0f, 1.0f);
 
 }

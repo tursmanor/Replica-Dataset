@@ -315,6 +315,62 @@ int main(int argc, char* argv[]) {
           pangolin::PixelFormatFromString("RGB24"),
           std::string(equirectFilename));
 
+      if (renderDepth) {
+                  // render depth
+                  // depthFrameBuffer.Bind();
+                  // glPushAttrib(GL_VIEWPORT_BIT);
+                  // glViewport(0, 0, width, height);
+                  // glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+                  //
+                  // glEnable(GL_CULL_FACE);
+                  //
+                  // ptexMesh.RenderDepth(s_cam, depthScale);
+                  //
+                  // glDisable(GL_CULL_FACE);
+                  //
+                  // glPopAttrib(); //GL_VIEWPORT_BIT
+                  // depthFrameBuffer.Unbind();
+                  //
+                  // depthTexture.Download(depthImage.ptr, GL_RED, GL_FLOAT);
+                  //
+                  // // convert to 16-bit int
+                  // for(size_t i = 0; i < depthImage.Area(); i++)
+                  //     depthImageInt[i] = static_cast<uint16_t>(depthImage[i] + 0.5f);
+                  //
+                  // char filename[1000];
+                  // snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/depthData/depth%02zu_%01zu.png",j,i);
+                  // pangolin::SaveImage(
+                  //     depthImageInt.UnsafeReinterpret<uint8_t>(),
+                  //     pangolin::PixelFormatFromString("GRAY16LE"),
+                  //     std::string(filename), true, 34.0f);
+
+                  depthFrameBuffer.Bind();
+                  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+                  glPushAttrib(GL_VIEWPORT_BIT);
+                  glViewport(0, 0, width, height);
+                  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+                  glEnable(GL_CULL_FACE);
+
+                  ptexMesh.RenderDepth(s_cam,1.f/0.5f,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f),eye);
+
+                  glDisable(GL_CULL_FACE);
+
+                  glPopAttrib(); //GL_VIEWPORT_BIT
+                  depthFrameBuffer.Unbind();
+
+                  depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
+
+                  char filename[1000];
+                  snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/multiviewData/depth_%s_%04zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),frame);
+                  pangolin::SaveImage(
+                      depthImage.UnsafeReinterpret<uint8_t>(),
+                      pangolin::PixelFormatFromString("RGB24"),
+                      std::string(filename));
+
+              }
+
       //moving along a straight line
       bool noise = false;
       if(noise){
@@ -372,6 +428,8 @@ int main(int argc, char* argv[]) {
         camPostoSave[step].push_back(q.y());
         camPostoSave[step].push_back(q.z());
         camPostoSave[step].push_back(q.w());
+        camPostoSave[step].push_back(width/2);
+        camPostoSave[step].push_back(width/2);
 
         if(step<numSpots-1){
           // std::cout<<cameraPos[step+1][0]<< " "<<cameraPos[step+1][1]<<" "<<cameraPos[step+1][2]<<" "<<cameraPos[step+1][3]<<" "<<cameraPos[step+1][4]<<" "<<cameraPos[step+1][5]<<std::endl;
@@ -418,24 +476,8 @@ int main(int argc, char* argv[]) {
 
       }
 
-      // moving by a square
-      // s_cam.GetModelViewMatrix() = old_Cam_to_World;
-      // Eigen::Matrix4d T_target = Eigen::Matrix4d::Identity();
-      // if(step<numSteps/4){
-      //   T_target.topRightCorner(3, 1) = Eigen::Vector3d(-0.0001, 0, 0);
-      // }
-      // else if(step<numSteps/2){
-      //   T_target.topRightCorner(3, 1) = Eigen::Vector3d(0, 0, 0.0001);
-      // }
-      // else if(step<numSteps*3/4){
-      //   T_target.topRightCorner(3, 1) = Eigen::Vector3d(0.0001, 0, 0);
-      // }
-      // else if(step<numSteps){
-      //   T_target.topRightCorner(3, 1) = Eigen::Vector3d(0, 0, -0.0001);
-      // }
-      //
-      // T_camera_world = T_target.inverse() * old_Cam_to_World ;
-      // s_cam.GetModelViewMatrix() = T_camera_world;
+
+
 
   }
 
@@ -443,7 +485,9 @@ int main(int argc, char* argv[]) {
   if(myfile.is_open()){
     for(int step=0;step<numSpots;step++){
       std::cout<<"hello";
-      myfile<<step<<" "<<camPostoSave[step][0]<<" "<<camPostoSave[step][1]<<" "<<camPostoSave[step][2]<<" "<<camPostoSave[step][3]<<" "<<camPostoSave[step][4]<<" "<<camPostoSave[step][5]<<" "<<camPostoSave[step][6]<<std::endl;
+      myfile<<step<<" "<<camPostoSave[step][0]<<" "<<camPostoSave[step][1]<<" "<<camPostoSave[step][2]<<" "
+      <<camPostoSave[step][3]<<" "<<camPostoSave[step][4]<<" "<<camPostoSave[step][5]<<" "<<camPostoSave[step][6]<<" "
+      <<camPostoSave[step][7]<<" "<<camPostoSave[step][8]<<std::endl;
     }
     myfile.close();
   }
