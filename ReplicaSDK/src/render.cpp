@@ -481,7 +481,11 @@ int main(int argc, char* argv[]) {
 
   }
 
-  std::ofstream myfile("pos_quat.txt");
+  char parameter_filename[1000];
+  snprintf(parameter_filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/dataset/%s_parameters.txt",navPositions.substr(0,navPositions.length()-4).c_str());
+
+
+  std::ofstream myfile(parameter_filename);
   if(myfile.is_open()){
     for(int step=0;step<numSpots;step++){
       std::cout<<"hello";
