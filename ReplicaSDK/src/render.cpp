@@ -317,57 +317,58 @@ int main(int argc, char* argv[]) {
 
       if (renderDepth) {
                   // render depth
-                  // depthFrameBuffer.Bind();
-                  // glPushAttrib(GL_VIEWPORT_BIT);
-                  // glViewport(0, 0, width, height);
-                  // glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-                  //
-                  // glEnable(GL_CULL_FACE);
-                  //
-                  // ptexMesh.RenderDepth(s_cam, depthScale);
-                  //
-                  // glDisable(GL_CULL_FACE);
-                  //
-                  // glPopAttrib(); //GL_VIEWPORT_BIT
-                  // depthFrameBuffer.Unbind();
-                  //
-                  // depthTexture.Download(depthImage.ptr, GL_RED, GL_FLOAT);
-                  //
-                  // // convert to 16-bit int
-                  // for(size_t i = 0; i < depthImage.Area(); i++)
-                  //     depthImageInt[i] = static_cast<uint16_t>(depthImage[i] + 0.5f);
-                  //
-                  // char filename[1000];
-                  // snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/depthData/depth%02zu_%01zu.png",j,i);
-                  // pangolin::SaveImage(
-                  //     depthImageInt.UnsafeReinterpret<uint8_t>(),
-                  //     pangolin::PixelFormatFromString("GRAY16LE"),
-                  //     std::string(filename), true, 34.0f);
-
                   depthFrameBuffer.Bind();
-                  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-
                   glPushAttrib(GL_VIEWPORT_BIT);
                   glViewport(0, 0, width, height);
                   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
                   glEnable(GL_CULL_FACE);
 
-                  ptexMesh.RenderDepth(s_cam,1.f/0.5f,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f),eye);
+                  ptexMesh.RenderDepth(s_cam, depthScale);
 
                   glDisable(GL_CULL_FACE);
 
                   glPopAttrib(); //GL_VIEWPORT_BIT
                   depthFrameBuffer.Unbind();
 
-                  depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
+                  depthTexture.Download(depthImage.ptr, GL_RED, GL_FLOAT);
+
+                  // convert to 16-bit int
+                  for(size_t i = 0; i < depthImage.Area(); i++)
+                      depthImageInt[i] = static_cast<uint16_t>(depthImage[i] + 0.5f);
 
                   char filename[1000];
-                  snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/multiviewData/depth_%s_%04zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),frame);
+                  snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/depthData/depth%02zu_%01zu.png",j,i);
                   pangolin::SaveImage(
-                      depthImage.UnsafeReinterpret<uint8_t>(),
-                      pangolin::PixelFormatFromString("RGB24"),
-                      std::string(filename));
+                      depthImageInt.UnsafeReinterpret<uint8_t>(),
+                      pangolin::PixelFormatFromString("GRAY16LE"),
+                      std::string(filename), true, 34.0f);
+
+                  // //revised
+                  // depthFrameBuffer.Bind();
+                  // glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+                  //
+                  // glPushAttrib(GL_VIEWPORT_BIT);
+                  // glViewport(0, 0, width, height);
+                  // glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+                  //
+                  // glEnable(GL_CULL_FACE);
+                  //
+                  // ptexMesh.RenderDepth(s_cam,1.f/0.5f,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f),eye);
+                  //
+                  // glDisable(GL_CULL_FACE);
+                  //
+                  // glPopAttrib(); //GL_VIEWPORT_BIT
+                  // depthFrameBuffer.Unbind();
+                  //
+                  // depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
+                  //
+                  // char filename[1000];
+                  // snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/multiviewData/depth_%s_%04zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),frame);
+                  // pangolin::SaveImage(
+                  //     depthImage.UnsafeReinterpret<uint8_t>(),
+                  //     pangolin::PixelFormatFromString("RGB24"),
+                  //     std::string(filename));
 
               }
 
@@ -419,15 +420,28 @@ int main(int argc, char* argv[]) {
         Eigen::Quaterniond q;
         q = Eigen::AngleAxis<double>(angle_rotation,right_after);
         std::cout<<q.w()<<" "<<q.x()<<" "<<q.y()<<" "<<q.z()<<std::endl;
+        std::cout<<T_camera_world<<std::endl;
+        for(int r = 0; r<4; r++){
+          for(int c = 0; c<4; c++){
+            std::cout<<T_camera_world(r,c);
+          }
+          std::cout<<std::endl;
+        }
 
         camPostoSave.push_back(std::vector<float>());
         camPostoSave[step].push_back(cameraPos[step][0]);
         camPostoSave[step].push_back(cameraPos[step][1]);
         camPostoSave[step].push_back(cameraPos[step][2]);
-        camPostoSave[step].push_back(q.x());
-        camPostoSave[step].push_back(q.y());
-        camPostoSave[step].push_back(q.z());
-        camPostoSave[step].push_back(q.w());
+        // //save the quaternion
+        // camPostoSave[step].push_back(q.x());
+        // camPostoSave[step].push_back(q.y());
+        // camPostoSave[step].push_back(q.z());
+        // camPostoSave[step].push_back(q.w());
+        for(int r = 0; r<4; r++){
+          for(int c = 0; c<4; c++){
+            camPostoSave[step].push_back(T_camera_world(r,c));
+          }
+        }
         camPostoSave[step].push_back(width/2);
         camPostoSave[step].push_back(width/2);
 
@@ -489,9 +503,14 @@ int main(int argc, char* argv[]) {
   if(myfile.is_open()){
     for(int step=0;step<numSpots;step++){
       std::cout<<"hello";
-      myfile<<step<<" "<<camPostoSave[step][0]<<" "<<camPostoSave[step][1]<<" "<<camPostoSave[step][2]<<" "
-      <<camPostoSave[step][3]<<" "<<camPostoSave[step][4]<<" "<<camPostoSave[step][5]<<" "<<camPostoSave[step][6]<<" "
-      <<camPostoSave[step][7]<<" "<<camPostoSave[step][8]<<std::endl;
+      myfile<<step<<" ";
+      for(int e = 0; e < camPostoSave[step].size(); e++){
+        myfile<<camPostoSave[step][e]<<" ";
+      }
+      // myfile<<camPostoSave[step][0]<<" "<<camPostoSave[step][1]<<" "<<camPostoSave[step][2]<<" "
+      // <<camPostoSave[step][3]<<" "<<camPostoSave[step][4]<<" "<<camPostoSave[step][5]<<" "<<camPostoSave[step][6]<<" "
+      // <<camPostoSave[step][7]<<" "<<camPostoSave[step][8]<<std::endl;
+      myfile<<std::endl;
     }
     myfile.close();
   }
