@@ -3,6 +3,8 @@
 #include <PTexLib.h>
 #include <string>
 #include <pangolin/image/image_convert.h>
+#include <pangolin/image/image_io.h>
+
 #include <Eigen/Geometry>
 #include "MirrorRenderer.h"
 #include <chrono>
@@ -139,7 +141,8 @@ int main(int argc, char* argv[]) {
   pangolin::GlRenderBuffer renderBuffer(width, height);
   pangolin::GlFramebuffer frameBuffer(render, renderBuffer);
 
-  pangolin::GlTexture depthTexture(width, height);
+  // pangolin::GlTexture depthTexture(width, height);
+  pangolin::GlTexture depthTexture(width, height, GL_R32F, false, 0, GL_RED, GL_FLOAT, 0);
   pangolin::GlFramebuffer depthFrameBuffer(depthTexture, renderBuffer);
 
   // Setup a camera
@@ -246,9 +249,9 @@ int main(int argc, char* argv[]) {
   PTexMesh ptexMesh(meshFile, atlasFolder, spherical);
 
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> image(width, height);
-  pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> depthImage(width, height);
+  // pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> depthImage(width, height);
 
-  // pangolin::ManagedImage<float> depthImage(width, height);
+  pangolin::ManagedImage<float> depthImage(width, height);
   pangolin::ManagedImage<uint16_t> depthImageInt(width, height);
 
   // Render 6 frames for cubemap for each spot
@@ -333,16 +336,20 @@ int main(int argc, char* argv[]) {
 
                   depthTexture.Download(depthImage.ptr, GL_RED, GL_FLOAT);
 
-                  // convert to 16-bit int
-                  for(size_t i = 0; i < depthImage.Area(); i++)
-                      depthImageInt[i] = static_cast<uint16_t>(depthImage[i] + 0.5f);
+                  // // convert to 16-bit int
+                  // for(size_t i = 0; i < depthImage.Area(); i++)
+                  //     depthImageInt[i] = static_cast<uint16_t>(depthImage[i] + 0.5f);
 
                   char filename[1000];
-                  snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/depthData/depth%02zu_%01zu.png",j,i);
+                  snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/multiviewData/depth_%s_%04zu.exr",navPositions.substr(0,navPositions.length()-4).c_str(),frame);
+                  // pangolin::SaveImage(
+                  //     depthImageInt.UnsafeReinterpret<uint8_t>(),
+                  //     pangolin::PixelFormatFromString("GRAY16LE"),
+                  //     std::string(filename), true, 34.0f);
                   pangolin::SaveImage(
-                      depthImageInt.UnsafeReinterpret<uint8_t>(),
-                      pangolin::PixelFormatFromString("GRAY16LE"),
-                      std::string(filename), true, 34.0f);
+                      depthImage.UnsafeReinterpret<uint8_t>(),
+                      pangolin::PixelFormatFromString("GRAY32F"),
+                      std::string(filename), pangolin::ImageFileTypeExr, true, 34.0f);
 
                   // //revised
                   // depthFrameBuffer.Bind();
