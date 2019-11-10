@@ -64,7 +64,8 @@ PTexMesh::PTexMesh(const std::string& meshFile, const std::string& atlasFolder, 
 
   }
 
-  depthShader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-depth.vert", {}, {shadir});
+  depthShader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-depth-spherical.vert", {}, {shadir});
+  depthShader.AddShaderFromFile(pangolin::GlSlGeometryShader, shadir + "/mesh-depth-spherical.geom", {}, {shadir});
   depthShader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-depth.frag", {}, {shadir});
   depthShader.Link();
 }
@@ -160,75 +161,43 @@ void PTexMesh::RenderSubMeshDepth(
     const Eigen::Vector4f& clipPlane,
     int lrC ) {
 
-  ASSERT(subMesh < meshes.size());
-  Mesh& mesh = *meshes[subMesh];
+    ASSERT(subMesh < meshes.size());
+    Mesh& mesh = *meshes[subMesh];
 
-  glPushAttrib(GL_POLYGON_BIT);
-  int currFrontFace;
-  glGetIntegerv(GL_FRONT_FACE, &currFrontFace);
-  //Drawing the faces has the opposite winding order to the GL_LINES_ADJACENCY
-  glFrontFace(currFrontFace == GL_CW ? GL_CCW : GL_CW);
+    glPushAttrib(GL_POLYGON_BIT);
+    // int currFrontFace;
+    // glGetIntegerv(GL_FRONT_FACE, &currFrontFace);
+    // //Drawing the faces has the opposite winding order to the GL_LINES_ADJACENCY
+    // glFrontFace(currFrontFace == GL_CW ? GL_CCW : GL_CW);
 
-  depthShader.Bind();
-  depthShader.SetUniform("MVP", cam.GetProjectionModelViewMatrix());
-  depthShader.SetUniform("MV", cam.GetModelViewMatrix());
-  depthShader.SetUniform("clipPlane", clipPlane(0), clipPlane(1), clipPlane(2), clipPlane(3));
-  depthShader.SetUniform("scale", depthScale);
+    depthShader.Bind();
+    depthShader.SetUniform("MVP", cam.GetProjectionModelViewMatrix());
+    depthShader.SetUniform("MV", cam.GetModelViewMatrix());
+    depthShader.SetUniform("clipPlane", clipPlane(0), clipPlane(1), clipPlane(2), clipPlane(3));
+    depthShader.SetUniform("scale", depthScale);
+    depthShader.SetUniform("baseline", baseline);
+    depthShader.SetUniform("leftRight", lrC);
 
-  mesh.vbo.Bind();
-  glVertexAttribPointer(0, mesh.vbo.count_per_element, mesh.vbo.datatype, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
-  mesh.vbo.Unbind();
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, mesh.abo.bo);
+    mesh.vbo.Bind();
+    glVertexAttribPointer(0, mesh.vbo.count_per_element, mesh.vbo.datatype, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    mesh.vbo.Unbind();
 
-  mesh.ibo.Bind();
-  glDrawElements(GL_QUADS, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
-  mesh.ibo.Unbind();
-  glDisableVertexAttribArray(0);
+    // mesh.ibo.Bind();
+    // glDrawElements(GL_QUADS, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
+    // mesh.ibo.Unbind();
 
-  depthShader.Unbind();
+    mesh.ibo.Bind();
+    // using GL_LINES_ADJACENCY here to send quads to geometry shader
+    glDrawElements(GL_LINES_ADJACENCY, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
+    mesh.ibo.Unbind();
 
-  glPopAttrib();
+    glDisableVertexAttribArray(0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+    depthShader.Unbind();
 
-
-
-
-
-
-  // ASSERT(subMesh < meshes.size());
-  // Mesh& mesh = *meshes[subMesh];
-  //
-  // glPushAttrib(GL_POLYGON_BIT);
-  // int currFrontFace;
-  // glGetIntegerv(GL_FRONT_FACE, &currFrontFace);
-  // //Drawing the faces has the opposite winding order to the GL_LINES_ADJACENCY
-  // glFrontFace(currFrontFace == GL_CW ? GL_CCW : GL_CW);
-  //
-  // depthShader.Bind();
-  // depthShader.SetUniform("MVP", cam.GetProjectionModelViewMatrix());
-  // depthShader.SetUniform("MV", cam.GetModelViewMatrix());
-  // depthShader.SetUniform("clipPlane", clipPlane(0), clipPlane(1), clipPlane(2), clipPlane(3));
-  // depthShader.SetUniform("scale", depthScale);
-  //
-  // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, mesh.abo.bo);
-  // mesh.vbo.Bind();
-  // glVertexAttribPointer(0, mesh.vbo.count_per_element, mesh.vbo.datatype, GL_FALSE, 0, 0);
-  // glEnableVertexAttribArray(0);
-  // mesh.vbo.Unbind();
-  //
-  // mesh.ibo.Bind();
-  // glDrawElements(GL_QUADS, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
-  // mesh.ibo.Unbind();
-  //
-  // // mesh.ibo.Bind();
-  // // // using GL_LINES_ADJACENCY here to send quads to geometry shader
-  // // glDrawElements(GL_LINES_ADJACENCY, mesh.ibo.num_elements, mesh.ibo.datatype, 0);
-  // // mesh.ibo.Unbind();
-  //
-  // glDisableVertexAttribArray(0);
-  // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-  // depthShader.Unbind();
-  //
-  // glPopAttrib();
+    glPopAttrib();
 }
 
 void PTexMesh::Render(const pangolin::OpenGlRenderState& cam, const Eigen::Vector4f& clipPlane, int lrC) {
