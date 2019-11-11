@@ -1,10 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+#define cimg_display 0
+
 #include <EGL.h>
 #include <PTexLib.h>
 #include <string>
 #include <pangolin/image/image_convert.h>
 #include <Eigen/Geometry>
 #include "MirrorRenderer.h"
+#include "CImg.h"
 #include <chrono>
 #include <random>
 #include <iterator>
@@ -78,9 +81,14 @@ int main(int argc, char* argv[]) {
 
   int width = 1920;
   int height = 1080;
+  // Downsample images
+  int width_ds = 540;
+  int height_ds = 270;
   if(spherical){
     width = 4096;
     height = 2048;
+    width_ds = 640;
+    height_ds = 320;
   }
 
   bool renderDepth = true;
@@ -207,17 +215,15 @@ int main(int argc, char* argv[]) {
         if(k==0){
           // src/ref baseline
           basel = cameraPos[j][3];
-          Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(basel, 0, 0);
-          T_camera_world = T_translate.inverse() * spot_cam_to_world ;
-          s_cam.GetModelViewMatrix() = T_camera_world;
+          eye=0;
         }else if(k==1){
           // src/ref baseline
           basel = cameraPos[j][3];
-          Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(-basel, 0, 0);
-          T_camera_world = T_translate.inverse() * spot_cam_to_world ;
-          s_cam.GetModelViewMatrix() = T_camera_world;
+          // Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
+          // T_translate.topRightCorner(3, 1) = Eigen::Vector3d(-basel, 0, 0);
+          // T_camera_world = T_translate.inverse() * spot_cam_to_world ;
+          // s_cam.GetModelViewMatrix() = T_camera_world;
+          eye=1;
         }
         else if(k==2){
           // interpolate frame to the right
@@ -257,7 +263,7 @@ int main(int argc, char* argv[]) {
 
         auto frame_start = high_resolution_clock::now();
 
-        std::cout << "\rRendering position " << k + 1 << "/" << 8 <<" with baseline of " << basel << std::endl;
+        std::cout << "\rRendering position " << k + 1 << "/" << 8 <<" with baseline of " << basel << "and eye of "<< eye << std::endl;
 
         // Render
         frameBuffer.Bind();
@@ -269,7 +275,9 @@ int main(int argc, char* argv[]) {
         glEnable(GL_CULL_FACE);
 
         ptexMesh.SetExposure(0.01);
-        ptexMesh.SetBaseline(basel);
+        if(eye != 2){
+          ptexMesh.SetBaseline(basel);
+        }
         if(spherical){
           ptexMesh.Render(s_cam,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f),eye);
         }else{
@@ -285,12 +293,25 @@ int main(int argc, char* argv[]) {
         if(spherical){
 
           char equirectFilename[1000];
-          snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/train-data-360-tgt-depth/%s_%04zu_pos%01zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
+          snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width,height,navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
 
           pangolin::SaveImage(
               image.UnsafeReinterpret<uint8_t>(),
               pangolin::PixelFormatFromString("RGB24"),
               std::string(equirectFilename), 100.0);
+
+          // Downsample the images with blur remove aliasing for training
+          //
+          cimg_library::CImg<uint8_t> img( equirectFilename );
+
+          // sigma to blur the image to remove aliasing is half the factor between the image resolutions
+          float sigma = float(width) / (2 * float(width_ds));
+          img.blur(sigma, sigma, 1.0, true, true);
+          img.resize(width_ds, height_ds, 1, 3, 1);
+
+          snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width_ds,height_ds,navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
+          img.save_jpeg(equirectFilename);
+
 
         }
         else{
@@ -328,11 +349,23 @@ int main(int argc, char* argv[]) {
             depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
             char filename[1000];
-            snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/train-data-360-tgt-depth/%s_%04zu_pos%01zu.jpeg",navPositions.substr(0,navPositions.length()-4).c_str(),j,k+1);
+            snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width,height,navPositions.substr(0,navPositions.length()-4).c_str(),j,k+1);
             pangolin::SaveImage(
                 depthImage.UnsafeReinterpret<uint8_t>(),
                 pangolin::PixelFormatFromString("RGB24"),
                 std::string(filename));
+
+            // Downsample the images with blur remove aliasing for training
+            //
+            cimg_library::CImg<uint8_t> img( filename );
+
+            // sigma to blur the image to remove aliasing is half the factor between the image resolutions
+            float sigma = float(width) / (2 * float(width_ds));
+            img.blur(sigma, sigma, 1.0, true, true);
+            img.resize(width_ds, height_ds, 1, 3, 1);
+
+            snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width_ds,height_ds,navPositions.substr(0,navPositions.length()-4).c_str(),j,k+1);
+            img.save_jpeg(filename);
 
         }
 
