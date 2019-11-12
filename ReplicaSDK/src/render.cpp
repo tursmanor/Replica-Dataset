@@ -34,9 +34,7 @@ int main(int argc, char* argv[]) {
 
   if (argc == 5) {
     navPositions = std::string(argv[4]);
-
     if(navPositions.length()==1){
-
       spherical = true;
       navPositions = std::string(argv[3]);
       ASSERT(pangolin::FileExists(navPositions));
@@ -59,8 +57,6 @@ int main(int argc, char* argv[]) {
     ASSERT(pangolin::FileExists(navPositions));
   }
 
-
-
   // load dataset generating txt file
   std::vector<std::vector<float>> cameraPos;
   if(navCam){
@@ -81,6 +77,7 @@ int main(int argc, char* argv[]) {
 
   int width = 1920;
   int height = 1080;
+
   // Downsample images
   int width_ds = 540;
   int height_ds = 270;
@@ -91,7 +88,7 @@ int main(int argc, char* argv[]) {
     height_ds = 320;
   }
 
-  bool renderDepth = true;
+  bool renderDepth = false;
   float depthScale = 65535.0f * 0.1f;
 
   // Setup EGL
@@ -123,7 +120,6 @@ int main(int argc, char* argv[]) {
   std::vector<float> initCam = {0,0.5,-0.6230950951576233};
   if(navCam){
     initCam = cameraPos[0];
-
     std::cout<<"Initial camera parameters:"<<initCam[0]<<" "<<initCam[1]<<" "<<initCam[2];
   }
   int cx = rand()%4;
@@ -204,67 +200,42 @@ int main(int argc, char* argv[]) {
 
       //get the modelview matrix with the navigable camera position specified in the text file
       Eigen::Matrix4d spot_cam_to_world = s_cam.GetModelViewMatrix();
+
       // rendering scheme
-      // eye:              0   1    0     1      0      1     0
-      // baseline radius:  bl  bl inter inter extra1 extra2  0
+      // 0,1,2: input spot
+      // 3,4,5: interpolation spot
+      // 6,7,8: extrapolation spot
+      // 9,10,11: extrapolation spot
+      for(int k =0; k<12;k++){
 
-      for(int k =0; k<7;k++){
-
-        int eye=2;
-        float basel;
-        if(k==0){
-          // src/ref baseline
-          basel = cameraPos[j][3];
-          eye=0;
-        }else if(k==1){
-          // src/ref baseline
-          basel = cameraPos[j][3];
-          // Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          // T_translate.topRightCorner(3, 1) = Eigen::Vector3d(-basel, 0, 0);
-          // T_camera_world = T_translate.inverse() * spot_cam_to_world ;
-          // s_cam.GetModelViewMatrix() = T_camera_world;
-          eye=1;
-        }
-        else if(k==2){
+        int which_spot = k / 3;
+        int eye= k % 3;
+        float basel = cameraPos[j][3];
+        if(which_spot == 1){
           // interpolate frame to the right
-          basel = cameraPos[j][4];
           Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(basel, 0, 0);
+          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(cameraPos[j][4], cameraPos[j][5], cameraPos[j][6]);
+          T_camera_world = T_translate.inverse() * spot_cam_to_world ;
+          s_cam.GetModelViewMatrix() = T_camera_world;
+
+        }
+        else if(which_spot == 2){
+          // extrapolate frame to the right (?)
+          Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
+          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(cameraPos[j][7], cameraPos[j][8], cameraPos[j][9]);
           T_camera_world = T_translate.inverse() * spot_cam_to_world ;
           s_cam.GetModelViewMatrix() = T_camera_world;
         }
-        else if(k==3){
-          // interpolate frame to the left
-          basel = cameraPos[j][4];
+        else if(which_spot == 3){
+          // extrapolate frame to the left (?)
           Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(-basel, 0, 0);
+          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(cameraPos[j][10], cameraPos[j][11], cameraPos[j][12]);
           T_camera_world = T_translate.inverse() * spot_cam_to_world ;
           s_cam.GetModelViewMatrix() = T_camera_world;
-        }
-        else if(k==4){
-          // extrapolate frame to the right
-          basel = cameraPos[j][5];
-          Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(basel, 0, 0);
-          T_camera_world = T_translate.inverse() * spot_cam_to_world ;
-          s_cam.GetModelViewMatrix() = T_camera_world;
-        }
-        else if(k==5){
-          // extrapolate frame to the left
-          basel = cameraPos[j][6];
-          Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-          T_translate.topRightCorner(3, 1) = Eigen::Vector3d(-basel, 0, 0);
-          T_camera_world = T_translate.inverse() * spot_cam_to_world ;
-          s_cam.GetModelViewMatrix() = T_camera_world;
-        }
-        else if(k==6){
-          s_cam.GetModelViewMatrix() = spot_cam_to_world;
         }
 
-        auto frame_start = high_resolution_clock::now();
-
-        std::cout << "\rRendering position " << k + 1 << "/" << 8 <<" with baseline of " << basel << "and eye of "<< eye << std::endl;
-
+        // auto frame_start = high_resolution_clock::now();
+        // std::cout << "\rRendering position " << k + 1 << "/" << 12 <<"from spot "<<which_spot<<" with baseline of " << basel << "and eye of "<< eye << std::endl;
         // Render
         frameBuffer.Bind();
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -293,7 +264,8 @@ int main(int argc, char* argv[]) {
         if(spherical){
 
           char equirectFilename[1000];
-          snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width,height,navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
+          snprintf(equirectFilename, 1000, "/media/battal/celsius-data/Replica-Dataset/equirectData/train_%dx%d/%s_%04zu_pos%02zu.jpeg",
+          width,height,navPositions.substr(0,navPositions.length()-9).c_str(),j,k);
 
           pangolin::SaveImage(
               image.UnsafeReinterpret<uint8_t>(),
@@ -302,32 +274,28 @@ int main(int argc, char* argv[]) {
 
           // Downsample the images with blur remove aliasing for training
           //
-          cimg_library::CImg<uint8_t> img( equirectFilename );
-
-          // sigma to blur the image to remove aliasing is half the factor between the image resolutions
-          float sigma = float(width) / (2 * float(width_ds));
-          img.blur(sigma, sigma, 1.0, true, true);
-          img.resize(width_ds, height_ds, 1, 3, 1);
-
-          snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width_ds,height_ds,navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
-          img.save_jpeg(equirectFilename);
-
+          // cimg_library::CImg<uint8_t> img( equirectFilename );
+          //
+          // // sigma to blur the image to remove aliasing is half the factor between the image resolutions
+          // float sigma = float(width) / (2 * float(width_ds));
+          // img.blur(sigma, sigma, 1.0, true, true);
+          // img.resize(width_ds, height_ds, 1, 3, 1);
+          //
+          // snprintf(equirectFilename, 1000, "/media/battal/celsius-data/Replica-Dataset/equirectData/train_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width_ds,height_ds,navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
+          // img.save_jpeg(equirectFilename);
 
         }
         else{
           char cmapFilename[1000];
-          snprintf(cmapFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/cubemapData/%s_%04zu_pos%01zu.png",navPositions.substr(0,navPositions.length()-4).c_str(),j,k);
-
+          snprintf(cmapFilename, 1000, "/media/battal/celsius-data/Replica-Dataset/cubemapData/%s_%04zu_pos%01zu.png",navPositions.substr(0,navPositions.length()-9).c_str(),j,k);
           pangolin::SaveImage(
               image.UnsafeReinterpret<uint8_t>(),
               pangolin::PixelFormatFromString("RGB24"),
               std::string(cmapFilename));
         }
-
-        auto frame_stop = high_resolution_clock::now();
-        auto frame_duration = duration_cast<microseconds>(frame_stop - frame_start);
-
-        std::cout << "Time taken rendering the image: " << frame_duration.count() << " microseconds" << std::endl;
+        // auto frame_stop = high_resolution_clock::now();
+        // auto frame_duration = duration_cast<microseconds>(frame_stop - frame_start);
+        // std::cout << "Time taken rendering the image: " << frame_duration.count() << " microseconds" << std::endl;
         if(renderDepth && k==6){
 
             depthFrameBuffer.Bind();
@@ -336,7 +304,6 @@ int main(int argc, char* argv[]) {
             glPushAttrib(GL_VIEWPORT_BIT);
             glViewport(0, 0, width, height);
             glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-
             glEnable(GL_CULL_FACE);
 
             ptexMesh.RenderDepth(s_cam,1.f/0.5f,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f),eye);
@@ -349,7 +316,8 @@ int main(int argc, char* argv[]) {
             depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
             char filename[1000];
-            snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width,height,navPositions.substr(0,navPositions.length()-4).c_str(),j,k+1);
+            snprintf(filename, 1000, "/media/battal/celsius-data/Replica-Dataset/equirectData/train_%dx%d/%s_%04zu_pos%01zu.jpeg",
+            width,height,navPositions.substr(0,navPositions.length()-9).c_str(),j,k+1);
             pangolin::SaveImage(
                 depthImage.UnsafeReinterpret<uint8_t>(),
                 pangolin::PixelFormatFromString("RGB24"),
@@ -357,18 +325,17 @@ int main(int argc, char* argv[]) {
 
             // Downsample the images with blur remove aliasing for training
             //
-            cimg_library::CImg<uint8_t> img( filename );
-
-            // sigma to blur the image to remove aliasing is half the factor between the image resolutions
-            float sigma = float(width) / (2 * float(width_ds));
-            img.blur(sigma, sigma, 1.0, true, true);
-            img.resize(width_ds, height_ds, 1, 3, 1);
-
-            snprintf(filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/equirectData/experiment_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width_ds,height_ds,navPositions.substr(0,navPositions.length()-4).c_str(),j,k+1);
-            img.save_jpeg(filename);
+            // cimg_library::CImg<uint8_t> img( filename );
+            //
+            // // sigma to blur the image to remove aliasing is half the factor between the image resolutions
+            // float sigma = float(width) / (2 * float(width_ds));
+            // img.blur(sigma, sigma, 1.0, true, true);
+            // img.resize(width_ds, height_ds, 1, 3, 1);
+            //
+            // snprintf(filename, 1000, "/media/battal/celsius-data/Replica-Dataset/equirectData/train_eq_ods_eq_%dx%d/%s_%04zu_pos%01zu.jpeg",width_ds,height_ds,navPositions.substr(0,navPositions.length()-4).c_str(),j,k+1);
+            // img.save_jpeg(filename);
 
         }
-
       }
 
       if(navCam){
@@ -381,15 +348,10 @@ int main(int argc, char* argv[]) {
         continue;
       }
 
-
-  std::cout << "\rRendering spot " << numSpots << "/" << numSpots << "... done" << std::endl;
+      std::cout << "\r Spot " << j + 1  << "/" << numSpots << std::endl;
+  }
   auto model_stop = high_resolution_clock::now();
   auto model_duration = duration_cast<microseconds>(model_stop - model_start);
-
-  std::cout << "Time taken rendering the model: " << model_duration.count() << " microseconds" << std::endl;
-
-
-  }
-
+  std::cout << "Time taken rendering the model "<<navPositions.substr(0,navPositions.length()-9).c_str()<<": "<< model_duration.count() << " microseconds" << std::endl;
   return 0;
 }

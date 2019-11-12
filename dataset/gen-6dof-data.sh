@@ -13,5 +13,5 @@
 
 #find * -type d -maxdepth 0 | tail -n $(($(ls *txt | wc -l)-3)) | xargs -P 2 -I {} -n 1 ../build/ReplicaSDK/ReplicaRenderer {}/mesh.ply {}/textures {}/glass.sur {}.txt y
 
-find * -type d -maxdepth 0 | xargs -P 2 -I {} -n 1 ../build/ReplicaSDK/ReplicaRenderer {}/mesh.ply {}/textures {}/glass.sur {}_6dof.txt y
+find * -type d -maxdepth 0 | xargs -P 3 -I {} -n 1 ../build/ReplicaSDK/ReplicaRenderer {}/mesh.ply {}/textures {}/glass.sur {}_6dof.txt y
 
