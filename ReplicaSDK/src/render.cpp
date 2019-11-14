@@ -242,7 +242,7 @@ int main(int argc, char* argv[]) {
       render.Download(image.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
       char equirectFilename[1000];
-      snprintf(equirectFilename, 1000, "/home/selenaling/Desktop/20191113_6DoF_TestSet/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,k);
+      snprintf(equirectFilename, 1000, "/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,k);
 
       pangolin::SaveImage(image.UnsafeReinterpret<uint8_t>(),
                           pangolin::PixelFormatFromString("RGB24"),
@@ -268,7 +268,7 @@ int main(int argc, char* argv[]) {
           depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
           char filename[1000];
-          snprintf(filename, 1000,"/home/selenaling/Desktop/20191113_6DoF_TestSet/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,nPass+nDepthPass);
+          snprintf(filename, 1000,"/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,nPass+nDepthPass);
           pangolin::SaveImage(
               depthImage.UnsafeReinterpret<uint8_t>(),
               pangolin::PixelFormatFromString("RGB24"),
@@ -318,7 +318,7 @@ int main(int argc, char* argv[]) {
         camPostoSave[j].push_back(width/2);
 
         char parameter_filename[1000];
-        snprintf(parameter_filename, 1000, "/home/selenaling/Desktop/Replica-Dataset/dataset/%s_parameters.txt",meshFile.substr(0,meshFile.length()-4).c_str());
+        snprintf(parameter_filename, 1000, "/home/battal/developer/Replica-Dataset/dataset/%s_parameters.txt",meshFile.substr(0,meshFile.length()-4).c_str());
 
         std::ofstream myfile(parameter_filename);
         if(myfile.is_open()){
