@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
   ASSERT(pangolin::FileExists(meshFile));
   ASSERT(pangolin::FileExists(atlasFolder));
 
-  bool navCam = true;
+  bool navCam = false;
   std::string navPositions;
   std::string surfaceFile;
 
@@ -56,6 +56,8 @@ int main(int argc, char* argv[]) {
     navPositions = std::string(argv[4]);
     ASSERT(pangolin::FileExists(navPositions));
   }
+  navCam = false;
+
 
   // load dataset generating txt file
   std::vector<std::vector<float>> cameraPos;
@@ -109,7 +111,14 @@ int main(int argc, char* argv[]) {
   pangolin::GlFramebuffer depthFrameBuffer(depthTexture, renderBuffer);
 
   // Setup a camera
-  std::vector<float> initCam = {0,0.5,-0.6230950951576233};
+  //for room_2
+  // std::vector<float> initCam = {0.8409916162490845,0.605334997177124,-1.0, 1, 1, -1.0};
+
+  // //for office_0
+  // std::vector<float> initCam = {-1.2106552124023438,-0.4804558753967285,0.38081249594688416, 1, 1, 0.38081249594688416 };
+
+  //for apartment_0
+  std::vector<float> initCam = {-2.4934263229370117,-4.147322177886963,-0.0, 1, 1, -0.0};
   if(navCam){
     initCam = cameraPos[0];
     std::cout<<"Initial camera position:"<<initCam[0]<<" "<<initCam[1]<<" "<<initCam[2];
@@ -173,7 +182,7 @@ int main(int argc, char* argv[]) {
   pangolin::ManagedImage<uint16_t> depthImageInt(width, height);
 
   // Render 6 frames for cubemap for each spot
-  size_t numSpots = 20;
+  size_t numSpots = 300;
   if(navCam){
     numSpots = cameraPos.size();
   }
@@ -195,10 +204,10 @@ int main(int argc, char* argv[]) {
 
       int which_spot = k / 3;
       int eye = k % 3;
-      float basel = cameraPos[j][6];
+      float basel = 0.064;
       if(which_spot == 1){
         Eigen::Matrix4d T_translate = Eigen::Matrix4d::Identity();
-        T_translate.topRightCorner(3, 1) = Eigen::Vector3d(cameraPos[j][7], cameraPos[j][8], cameraPos[j][9]);
+        T_translate.topRightCorner(3, 1) = Eigen::Vector3d(0.1, 0.15, 0.08);
         T_camera_world = T_translate.inverse() * spot_cam_to_world ;
         s_cam.GetModelViewMatrix() = T_camera_world;
       }
@@ -242,7 +251,13 @@ int main(int argc, char* argv[]) {
       render.Download(image.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
       char equirectFilename[1000];
-      snprintf(equirectFilename, 1000, "/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,k);
+      if(navCam){
+        snprintf(equirectFilename, 1000, "/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",
+        navPositions.substr(0,navPositions.length()-10).c_str(),j,k);
+      }else{
+        snprintf(equirectFilename, 1000, "/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",
+        meshFile.substr(0,meshFile.length()-9).c_str(),j,k);
+      }
 
       pangolin::SaveImage(image.UnsafeReinterpret<uint8_t>(),
                           pangolin::PixelFormatFromString("RGB24"),
@@ -344,9 +359,15 @@ int main(int argc, char* argv[]) {
 
     if(j<numSpots-1){
         //set camera to next location in txt file
-        s_cam.SetModelViewMatrix(pangolin::ModelViewLookAtRDF(cameraPos[j+1][0],cameraPos[j+1][1],cameraPos[j+1][2],
-                                                              cameraPos[j+1][3],cameraPos[j+1][4],cameraPos[j+1][5],
-                                                              0, 0, 1));
+        if(navCam){
+          s_cam.SetModelViewMatrix(pangolin::ModelViewLookAtRDF(cameraPos[j+1][0],cameraPos[j+1][1],cameraPos[j+1][2],
+                                                                cameraPos[j+1][3],cameraPos[j+1][4],cameraPos[j+1][5],
+                                                                0, 0, 1));
+        }else{
+          s_cam.SetModelViewMatrix(pangolin::ModelViewLookAtRDF(initCam[0]+(j+1.f)/100.f,initCam[1],initCam[2],
+                                                                initCam[3]+(j+1.f)/100.f,initCam[4],initCam[5],
+                                                                0, 0, 1));
+        }
     }
 
     std::cout << "\rRendering spot " << j << "/" << numSpots << "... done" << std::endl;

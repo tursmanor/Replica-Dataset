@@ -1,7 +1,0 @@
-build
-*~
-*.swp
-dataset/
-test-dataset/
-!*.txt
-!*.sh
