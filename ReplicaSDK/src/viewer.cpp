@@ -123,11 +123,8 @@ int main(int argc, char* argv[]) {
   ptexMesh.SetExposure(exposure);
 
   // Try adding the bunny mesh to the scene
-  //pangolin::Geometry bunny = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/bunny/bunny_nn.obj");
   pangolin::Geometry bunny = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/lpshead/head.obj");
-  //pangolin::Geometry bunny = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/bunny/nonbinary-bunny.ply");
   pangolin::GlGeometry bunnyGL = pangolin::ToGlGeometry(bunny);
-
 
   // Define shader options
   enum class RenderMode { uv=0, tex, color, normal, matcap, vertex, num_modes };
@@ -146,10 +143,11 @@ int main(int argc, char* argv[]) {
   // Initialize bunny position
   // Translate: x,y,z
   // Rotate: angle,x,y,z, with x,y,z in [0,1]
-  float translation[] = {0,0,0};
-  float rotation[] = {0,0,1,0}; 
-  float deltaT = 0.01;
-  float deltaR = 0.01; //in degrees :(
+  float translation[] = {-2.5,0.5,0};
+  float rotation = M_PI/4; 
+  float headRot = M_PI/2;
+  float deltaT = 0.001;
+  float deltaR = 0.005; //in radians
   int frames = 0;
 
   while (!pangolin::ShouldQuit()) {
@@ -220,65 +218,60 @@ int main(int argc, char* argv[]) {
       } 
       else {
 
-        glPushMatrix();
-        glScalef(1,1,1);
-        //glTranslatef(translation[0], translation[1], translation[2]);
-        //glRotatef(rotation[0],rotation[1],rotation[2],rotation[3]);
- 
-
         const pangolin::OpenGlMatrix camMVGL = s_cam.GetModelViewMatrix();
         const Eigen::Matrix<float,4,4> camMV = pangolin::ToEigen<float>( camMVGL );
 
         const pangolin::OpenGlMatrix camKGL = s_cam.GetProjectionMatrix();
         const Eigen::Matrix<float,4,4> camK = pangolin::ToEigen<float>( camKGL );
 
+        // Create rotation matrix R. X to flip the head up, Z to shake the head left to right.
+        Eigen::Matrix<float,4,4> Rx = Eigen::Matrix<float,4,4>();
+        Rx(0,0) = 1;   Rx(0,1) = 0;            Rx(0,2) = 0;              Rx(0,3) = 0;
+        Rx(1,0) = 0;   Rx(1,1) = cos(headRot); Rx(1,2) = -sin(headRot);  Rx(1,3) = 0;
+        Rx(2,0) = 0;   Rx(2,1) = sin(headRot); Rx(2,2) = cos(headRot);   Rx(2,3) = 0;
+        Rx(3,0) = 0;   Rx(3,1) = 0;            Rx(3,2) = 0;              Rx(3,3) = 1;
+
+        Eigen::Matrix<float,4,4> Rz = Eigen::Matrix<float,4,4>();
+        Rz(0,0) = cos(rotation);   Rz(0,1) = -sin(rotation);  Rz(0,2) = 0;  Rz(0,3) = 0;
+        Rz(1,0) = sin(rotation);   Rz(1,1) = cos(rotation);   Rz(1,2) = 0;  Rz(1,3) = 0;
+        Rz(2,0) = 0;               Rz(2,1) = 0;               Rz(2,2) = 1;  Rz(2,3) = 0;
+        Rz(3,0) = 0;               Rz(3,1) = 0;               Rz(3,2) = 0;  Rz(3,3) = 1;
+
+        Eigen::Matrix<float,4,4> R = Rz * Rx; // Flipped order from the standard bc of row col ordering biz
+
+        // Using 4x4 [R|T] with the right-handed Z rotation matrix
         Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
-        objMV(0,0) = 1;   objMV(0,1) = 0;                 objMV(0,2) = 0;                   objMV(0,3) = translation[0];
-        objMV(1,0) = 0;   objMV(1,1) = cos(rotation[0]);  objMV(1,2) = -sin(rotation[0]);   objMV(1,3) = translation[1];
-        objMV(2,0) = 0;   objMV(2,1) = sin(rotation[0]);  objMV(2,2) = cos(rotation[0]);    objMV(2,3) = translation[2];
-        objMV(3,0) = 0;   objMV(3,1) = 0;                 objMV(3,2) = 0;                   objMV(3,3) = 1;
-
-        // Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
-        // objMV(0,0) = 1;   objMV(0,1) = 0;                 objMV(0,2) = 0;                   objMV(0,3) = 0;
-        // objMV(1,0) = 0;   objMV(1,1) = 1;                 objMV(1,2) = 0;                   objMV(1,3) = 0;
-        // objMV(2,0) = 0;   objMV(2,1) = 0;                 objMV(2,2) = 1;                   objMV(2,3) = 0;
-        // objMV(3,0) = 0;   objMV(3,1) = 0;                 objMV(3,2) = 0;                   objMV(3,3) = 1;
-
-        // Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
-        // objMV(0,0) = 1;   objMV(1,0) = 0;                 objMV(2,0) = 0;                   objMV(3,0) = translation[0];
-        // objMV(0,1) = 0;   objMV(1,1) = cos(rotation[0]);  objMV(2,1) = -sin(rotation[0]);   objMV(3,1) = translation[1];
-        // objMV(0,2) = 0;   objMV(1,2) = sin(rotation[0]);  objMV(2,2) = cos(rotation[0]);    objMV(3,2) = translation[2];
-        // objMV(0,3) = 0;   objMV(1,3) = 0;                 objMV(2,3) = 0;                   objMV(3,3) = 1;
-
+        objMV(0,0) = R(0,0);   objMV(0,1) = R(0,1);  objMV(0,2) = R(0,2);  objMV(0,3) = translation[0];
+        objMV(1,0) = R(1,0);   objMV(1,1) = R(1,1);  objMV(1,2) = R(1,2);  objMV(1,3) = translation[1];
+        objMV(2,0) = R(2,0);   objMV(2,1) = R(2,1);  objMV(2,2) = R(2,2);  objMV(2,3) = translation[2];
+        objMV(3,0) = R(3,0);   objMV(3,1) = R(3,1);  objMV(3,2) = R(3,2);  objMV(3,3) = 1;
+        
         const Eigen::Matrix<float,4,4> res1 = camMV * objMV;
         const pangolin::OpenGlMatrix objCamMV = pangolin::OpenGlMatrix( res1 );
         const Eigen::Matrix<float,4,4> res2 = camK * camMV * objMV;
         const pangolin::OpenGlMatrix objCamKMV = pangolin::OpenGlMatrix( res2 );
 
-        //pangolin::glDrawColouredCube(-0.5f,0.5f);
         shader.Bind();
         shader.SetUniform("T_cam_norm", objCamMV );
         shader.SetUniform("KT_cw", objCamKMV );
-        //shader.SetUniform("T_cam_norm", s_cam.GetModelViewMatrix() );
-        //shader.SetUniform("KT_cw", s_cam.GetProjectionModelViewMatrix() );
+        glDisable(GL_CULL_FACE);  // fix texture being inside out
    	    pangolin::GlDraw(shader, bunnyGL, NULL);
         shader.Unbind();
-        
-        
-        glPopMatrix();
 
         // Draw scene!
         ptexMesh.Render(s_cam);
       
         // Modify translation and rotation by a small increment
-        translation[1] += deltaT;
-        rotation[0] += deltaR;
+        translation[0] += deltaT;
+        rotation += deltaR;
         frames++;
 
-        // Pick a random axis and swap rotation on/off every 10 frames
-        if ((frames % 30) == 0){
+        // Pick a random axis and swap rotation on/off every k frames
+        if ((frames % 2000) == 0){
           deltaT *= -1;
-          deltaR = -1 * deltaR;
+        }
+        if ((frames % 100) == 0){
+          deltaR *= -1;
         }
       }
 

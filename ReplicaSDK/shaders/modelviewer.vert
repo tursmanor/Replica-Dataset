@@ -24,7 +24,7 @@
     attribute vec2 uv;
     varying vec2 vUV;
     void main() {
-        vUV = uv;
+        vUV = vec2(uv.s, 1.0-uv.t); // try flipping to get face texture correct
 #elif SHOW_MATCAP
     attribute vec3 normal;
     varying vec3 vNormalCam;
