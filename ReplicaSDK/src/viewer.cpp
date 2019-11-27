@@ -143,9 +143,10 @@ int main(int argc, char* argv[]) {
   // Initialize bunny position
   // Translate: x,y,z
   // Rotate: angle,x,y,z, with x,y,z in [0,1]
-  float translation[] = {-2.5,0.5,0};
+  float translation[] = {-1.7,.1,0.2};
   float rotation = M_PI/4; 
   float headRot = M_PI/2;
+  float scaleFactor = 2;
   float deltaT = 0.001;
   float deltaR = 0.005; //in radians
   int frames = 0;
@@ -246,9 +247,17 @@ int main(int argc, char* argv[]) {
         objMV(2,0) = R(2,0);   objMV(2,1) = R(2,1);  objMV(2,2) = R(2,2);  objMV(2,3) = translation[2];
         objMV(3,0) = R(3,0);   objMV(3,1) = R(3,1);  objMV(3,2) = R(3,2);  objMV(3,3) = 1;
         
-        const Eigen::Matrix<float,4,4> res1 = camMV * objMV;
+        // Add scaling matrix
+        Eigen::Matrix<float,4,4> S = Eigen::Matrix<float,4,4>();
+        S(0,0) = scaleFactor;   S(0,1) = 0;             S(0,2) = 0;           S(0,3) = 0;
+        S(1,0) = 0;             S(1,1) = scaleFactor;   S(1,2) = 0;           S(1,3) = 0;
+        S(2,0) = 0;             S(2,1) = 0;             S(2,2) = scaleFactor; S(2,3) = 0;
+        S(3,0) = 0;             S(3,1) = 0;             S(3,2) = 0;           S(3,3) = 1;
+
+
+        const Eigen::Matrix<float,4,4> res1 = camMV * S * objMV;
         const pangolin::OpenGlMatrix objCamMV = pangolin::OpenGlMatrix( res1 );
-        const Eigen::Matrix<float,4,4> res2 = camK * camMV * objMV;
+        const Eigen::Matrix<float,4,4> res2 = camK * camMV * S * objMV;
         const pangolin::OpenGlMatrix objCamKMV = pangolin::OpenGlMatrix( res2 );
 
         shader.Bind();
@@ -267,7 +276,7 @@ int main(int argc, char* argv[]) {
         frames++;
 
         // Pick a random axis and swap rotation on/off every k frames
-        if ((frames % 2000) == 0){
+        if ((frames % 1500) == 0){
           deltaT *= -1;
         }
         if ((frames % 100) == 0){

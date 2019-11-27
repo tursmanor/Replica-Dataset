@@ -12,13 +12,17 @@
 #include <iterator>
 #include <iostream>
 #include <fstream>
+
+#include<pangolin/geometry/geometry.h>
+#include<pangolin/geometry/glgeometry.h>
+
 using namespace std::chrono;
 
 int main(int argc, char* argv[]) {
 
   auto model_start = high_resolution_clock::now();
 
-  ASSERT(argc == 5 || argc == 6, "Usage: ./ReplicaViewer mesh.ply textures [glass.sur] cameraPositions.txt [y if spherical]");
+  //ASSERT(argc == 5 || argc == 6, "Usage: ./ReplicaRenderer mesh.ply textures [glass.sur]");
 
   const std::string meshFile(argv[1]);
   const std::string atlasFolder(argv[2]);
@@ -29,38 +33,8 @@ int main(int argc, char* argv[]) {
   std::string navPositions;
   std::string surfaceFile;
 
-  bool spherical = false;
-
-  if (argc == 5) {
-    navPositions = std::string(argv[4]);
-
-    if(navPositions.length()==1){
-
-      spherical = true;
-      navPositions = std::string(argv[3]);
-      ASSERT(pangolin::FileExists(navPositions));
-
-    }else{
-
-      surfaceFile = std::string(argv[3]);
-      ASSERT(pangolin::FileExists(surfaceFile));
-      ASSERT(pangolin::FileExists(navPositions));
-
-    }
-  }
-  if (argc == 6) {
-    spherical = true;
-    surfaceFile = std::string(argv[3]);
-    ASSERT(pangolin::FileExists(surfaceFile));
-
-    navPositions = std::string(argv[4]);
-    ASSERT(pangolin::FileExists(navPositions));
-  }
-  navCam = false;
-
-
   // load dataset generating txt file
-  std::vector<std::vector<float>> cameraPos;
+/*   std::vector<std::vector<float>> cameraPos;
   if(navCam){
     std::fstream in(navPositions);
     std::string line;
@@ -75,14 +49,10 @@ int main(int argc, char* argv[]) {
       }
       ++i;
     }
-  }
+  } */
 
   int width = 1920;
   int height = 1080;
-  if(spherical){
-    width = 4096;
-    height = 2048;
-  }
 
   bool renderDepth = false;
   bool saveParameter = false;
@@ -93,14 +63,7 @@ int main(int argc, char* argv[]) {
   egl.PrintInformation();
   //Don't draw backfaces
   GLenum frontFace = GL_CW;
-
-  if(spherical){
-    glFrontFace(frontFace);
-  }
-  else{
-    frontFace = GL_CCW;
-    glFrontFace(frontFace);
-  }
+  glFrontFace(frontFace);
 
   // Setup a framebuffer
   pangolin::GlTexture render(width, height);
@@ -111,6 +74,9 @@ int main(int argc, char* argv[]) {
   pangolin::GlFramebuffer depthFrameBuffer(depthTexture, renderBuffer);
 
   // Setup a camera
+  // for room_1
+  std::vector<float> initCam = {0.8,0.6,-1, 1, 1, -1};
+
   //for room_2
   // std::vector<float> initCam = {0.8409916162490845,0.605334997177124,-1.0, 1, 1, -1.0};
 
@@ -118,15 +84,12 @@ int main(int argc, char* argv[]) {
   // std::vector<float> initCam = {-1.2106552124023438,-0.4804558753967285,0.38081249594688416, 1, 1, 0.38081249594688416 };
 
   //for apartment_0
-  std::vector<float> initCam = {-2.4934263229370117,-4.147322177886963,-0.0, 1, 1, -0.0};
-  if(navCam){
+  //std::vector<float> initCam = {-2.4934263229370117,-4.147322177886963,-0.0, 1, 1, -0.0};
+  
+/*   if(navCam){
     initCam = cameraPos[0];
     std::cout<<"Initial camera position:"<<initCam[0]<<" "<<initCam[1]<<" "<<initCam[2];
-  }
-  int cx = rand()%4;
-  int cy = rand()%4;
-  // int cx = 1;
-  // int cy = 1;
+  } */
 
   pangolin::OpenGlRenderState s_cam(
     pangolin::ProjectionMatrixRDF_BottomLeft(
@@ -152,12 +115,12 @@ int main(int argc, char* argv[]) {
   Eigen::Matrix4d R_up=Eigen::Matrix4d::Identity();
   Eigen::Matrix4d R_down=Eigen::Matrix4d::Identity();
 
-  R_side=t.matrix();
-  R_up=u.matrix();
-  R_down=d.matrix();
+  R_side = t.matrix();
+  R_up = u.matrix();
+  R_down = d.matrix();
 
   // load mirrors
-  std::vector<MirrorSurface> mirrors;
+/*   std::vector<MirrorSurface> mirrors;
   if (surfaceFile.length()) {
     std::ifstream file(surfaceFile);
     picojson::value json;
@@ -167,25 +130,53 @@ int main(int argc, char* argv[]) {
       mirrors.emplace_back(json[i]);
     }
     std::cout << "Loaded " << mirrors.size() << " mirrors" << std::endl;
-  }
+  } */
 
   const std::string shadir = STR(SHADER_DIR);
-  MirrorRenderer mirrorRenderer(mirrors, width, height, shadir);
+  //MirrorRenderer mirrorRenderer(mirrors, width, height, shadir);
 
-  // load mesh and textures
-  PTexMesh ptexMesh(meshFile, atlasFolder, spherical);
+  // Load mesh and textures
+  PTexMesh ptexMesh(meshFile, atlasFolder, false);
 
+  // Load face mesh and dynamic movement settings for it
+  pangolin::Geometry face = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/lpshead/head.obj");
+  pangolin::GlGeometry faceGL = pangolin::ToGlGeometry(face);
+
+  // Define shader options
+  enum class RenderMode { uv=0, tex, color, normal, matcap, vertex, num_modes };
+  const std::string mode_names[] = {"SHOW_UV", "SHOW_TEXTURE", "SHOW_COLOR", "SHOW_NORMAL", "SHOW_MATCAP", "SHOW_VERTEX"};
+  std::map<std::string,std::string> prog_defines;
+  for(int i=0; i < (int)RenderMode::num_modes-1; ++i) {
+      prog_defines[mode_names[i]] = std::to_string((int)RenderMode::tex == i);
+  }
+
+  // Load shader for face
+  pangolin::GlSlProgram shader = pangolin::GlSlProgram();
+  shader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/modelviewer.vert", {prog_defines}, {shadir});
+  shader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/modelviewer.frag", {prog_defines}, {shadir});
+  shader.Link();
+
+  // Initialize face position in room_1
+  // Translate: x,y,z
+  // Rotate: angle,x,y,z, with x,y,z in [0,1]
+  float translation[] = {-1.7,.1,0.2};
+  float rotation = M_PI/4; 
+  float headRot = M_PI/2;
+  float scaleFactor = 2;
+  float deltaT = 0.001;
+  float deltaR = 0.005; //in radians
+  int frames = 0;
+
+  // Initialize output images
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> image(width, height);
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> depthImage(width, height);
 
   // pangolin::ManagedImage<float> depthImage(width, height);
   pangolin::ManagedImage<uint16_t> depthImageInt(width, height);
-
+  
   // Render 6 frames for cubemap for each spot
   size_t numSpots = 300;
-  if(navCam){
-    numSpots = cameraPos.size();
-  }
+
   // For rendering equirect videos
   // numSpots = 700;
   std::vector<std::vector<float>> camPostoSave;
@@ -212,8 +203,10 @@ int main(int argc, char* argv[]) {
         s_cam.GetModelViewMatrix() = T_camera_world;
       }
 
-      std::cout << "\rRendering position " << k + 1 << "/" << 6 <<"from spot "<<which_spot<<" with baseline of " << basel << "and eye of "<< eye << std::endl;
+      std::cout << "\rRendering position " << k + 1 << "/" << 6 <<" from spot "<<which_spot<<" with baseline of " << basel << " and eye of "<< eye << std::endl;
+      
       frameBuffer.Bind();
+
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
       glPushAttrib(GL_VIEWPORT_BIT);
@@ -224,46 +217,90 @@ int main(int argc, char* argv[]) {
 
       ptexMesh.SetExposure(0.01);
       ptexMesh.SetBaseline(basel);
+
+      // Add dynamic mesh to render
+      const pangolin::OpenGlMatrix camMVGL = s_cam.GetModelViewMatrix();
+      const Eigen::Matrix<float,4,4> camMV = pangolin::ToEigen<float>( camMVGL );
+
+      const pangolin::OpenGlMatrix camKGL = s_cam.GetProjectionMatrix();
+      const Eigen::Matrix<float,4,4> camK = pangolin::ToEigen<float>( camKGL );
+
+      // Create rotation matrix R. X to flip the head up, Z to shake the head left to right.
+      Eigen::Matrix<float,4,4> Rx = Eigen::Matrix<float,4,4>();
+      Rx(0,0) = 1;   Rx(0,1) = 0;            Rx(0,2) = 0;              Rx(0,3) = 0;
+      Rx(1,0) = 0;   Rx(1,1) = cos(headRot); Rx(1,2) = -sin(headRot);  Rx(1,3) = 0;
+      Rx(2,0) = 0;   Rx(2,1) = sin(headRot); Rx(2,2) = cos(headRot);   Rx(2,3) = 0;
+      Rx(3,0) = 0;   Rx(3,1) = 0;            Rx(3,2) = 0;              Rx(3,3) = 1;
+
+      Eigen::Matrix<float,4,4> Rz = Eigen::Matrix<float,4,4>();
+      Rz(0,0) = cos(rotation);   Rz(0,1) = -sin(rotation);  Rz(0,2) = 0;  Rz(0,3) = 0;
+      Rz(1,0) = sin(rotation);   Rz(1,1) = cos(rotation);   Rz(1,2) = 0;  Rz(1,3) = 0;
+      Rz(2,0) = 0;               Rz(2,1) = 0;               Rz(2,2) = 1;  Rz(2,3) = 0;
+      Rz(3,0) = 0;               Rz(3,1) = 0;               Rz(3,2) = 0;  Rz(3,3) = 1;
+
+      Eigen::Matrix<float,4,4> R = Rz * Rx; // Flipped order from the standard bc of row col ordering biz
+
+      // Using 4x4 [R|T] with the right-handed Z rotation matrix
+      Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
+      objMV(0,0) = R(0,0);   objMV(0,1) = R(0,1);  objMV(0,2) = R(0,2);  objMV(0,3) = translation[0];
+      objMV(1,0) = R(1,0);   objMV(1,1) = R(1,1);  objMV(1,2) = R(1,2);  objMV(1,3) = translation[1];
+      objMV(2,0) = R(2,0);   objMV(2,1) = R(2,1);  objMV(2,2) = R(2,2);  objMV(2,3) = translation[2];
+      objMV(3,0) = R(3,0);   objMV(3,1) = R(3,1);  objMV(3,2) = R(3,2);  objMV(3,3) = 1;
+        
+      // Add scaling matrix
+      Eigen::Matrix<float,4,4> S = Eigen::Matrix<float,4,4>();
+      S(0,0) = scaleFactor;   S(0,1) = 0;             S(0,2) = 0;           S(0,3) = 0;
+      S(1,0) = 0;             S(1,1) = scaleFactor;   S(1,2) = 0;           S(1,3) = 0;
+      S(2,0) = 0;             S(2,1) = 0;             S(2,2) = scaleFactor; S(2,3) = 0;
+      S(3,0) = 0;             S(3,1) = 0;             S(3,2) = 0;           S(3,3) = 1;
+
+      const Eigen::Matrix<float,4,4> res1 = camMV * S * objMV;
+      const pangolin::OpenGlMatrix objCamMV = pangolin::OpenGlMatrix( res1 );
+      const Eigen::Matrix<float,4,4> res2 = camK * camMV * S * objMV;
+      const pangolin::OpenGlMatrix objCamKMV = pangolin::OpenGlMatrix( res2 );
+
+      shader.Bind();
+      shader.SetUniform("T_cam_norm", objCamMV );
+      shader.SetUniform("KT_cw", objCamKMV );
+      glDisable(GL_CULL_FACE);  // fix texture being inside out
+   	  pangolin::GlDraw(shader, faceGL, NULL);
+      shader.Unbind();
+
+      // Draw scene!
       ptexMesh.Render(s_cam,Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f),eye);
+      
+      // Modify translation and rotation by a small increment
+      translation[0] += deltaT;
+      rotation += deltaR;
+      frames++;
 
-      glDisable(GL_CULL_FACE);
-
+      // Pick a random axis and swap rotation on/off every k frames
+      if ((frames % 1500) == 0){
+        deltaT *= -1;
+      }
+      if ((frames % 100) == 0){
+        deltaR *= -1;
+      }
+      
       glPopAttrib(); //GL_VIEWPORT_BIT
-      frameBuffer.Unbind();
 
-      // for (size_t i = 0; i < mirrors.size(); i++) {
-      //   MirrorSurface& mirror = mirrors[i];
-      //   // capture reflections
-      //   mirrorRenderer.CaptureReflection(mirror, ptexMesh, s_cam, frontFace);
-      //
-      //   frameBuffer.Bind();
-      //   glPushAttrib(GL_VIEWPORT_BIT);
-      //   glViewport(0, 0, width, height);
-      //
-      //   // render mirror
-      //   mirrorRenderer.Render(mirror, mirrorRenderer.GetMaskTexture(i), s_cam);
-      //
-      //   glPopAttrib(); //GL_VIEWPORT_BIT
-      //   frameBuffer.Unbind();
-      // }
+      std::cout << "Got here" << std::endl;
+      frameBuffer.Unbind();
 
       // Download and save
       render.Download(image.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
       char equirectFilename[1000];
-      if(navCam){
-        snprintf(equirectFilename, 1000, "/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",
-        navPositions.substr(0,navPositions.length()-10).c_str(),j,k);
-      }else{
-        snprintf(equirectFilename, 1000, "/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",
+      snprintf(equirectFilename, 1000, "/home/eleanor/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",
         meshFile.substr(0,meshFile.length()-9).c_str(),j,k);
-      }
+ 
 
       pangolin::SaveImage(image.UnsafeReinterpret<uint8_t>(),
                           pangolin::PixelFormatFromString("RGB24"),
                           std::string(equirectFilename));
 
-      if (renderDepth && eye==2) {
+      // Depth rendering
+     /*  if (renderDepth && eye==2) {
           //revised
           depthFrameBuffer.Bind();
           glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -283,7 +320,7 @@ int main(int argc, char* argv[]) {
           depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
           char filename[1000];
-          snprintf(filename, 1000,"/home/battal/developer/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,nPass+nDepthPass);
+          snprintf(filename, 1000,"/home/eleanor/Replica-Dataset/test_video_4096x2048/%s_%04zu_pos%01d.jpeg",navPositions.substr(0,navPositions.length()-10).c_str(),j,nPass+nDepthPass);
           pangolin::SaveImage(
               depthImage.UnsafeReinterpret<uint8_t>(),
               pangolin::PixelFormatFromString("RGB24"),
@@ -291,7 +328,9 @@ int main(int argc, char* argv[]) {
 
           nDepthPass += 1;
         }
-      if (saveParameter) {
+ */
+      // Parameter output  
+      /* if (saveParameter) {
         //calculate and save the quaternion
         T_camera_world = s_cam.GetModelViewMatrix();
         Eigen::Matrix4d cam_matrix = T_camera_world.inverse();
@@ -333,7 +372,7 @@ int main(int argc, char* argv[]) {
         camPostoSave[j].push_back(width/2);
 
         char parameter_filename[1000];
-        snprintf(parameter_filename, 1000, "/home/battal/developer/Replica-Dataset/dataset/%s_parameters.txt",meshFile.substr(0,meshFile.length()-4).c_str());
+        snprintf(parameter_filename, 1000, "/home/eleanor/Replica-Dataset/dataset/%s_parameters.txt",meshFile.substr(0,meshFile.length()-4).c_str());
 
         std::ofstream myfile(parameter_filename);
         if(myfile.is_open()){
@@ -350,24 +389,18 @@ int main(int argc, char* argv[]) {
             myfile<<std::endl;
           }
           myfile.close();
-        }
+        } 
 
-
-      }
+      }*/
 
     }
 
     if(j<numSpots-1){
         //set camera to next location in txt file
-        if(navCam){
-          s_cam.SetModelViewMatrix(pangolin::ModelViewLookAtRDF(cameraPos[j+1][0],cameraPos[j+1][1],cameraPos[j+1][2],
-                                                                cameraPos[j+1][3],cameraPos[j+1][4],cameraPos[j+1][5],
-                                                                0, 0, 1));
-        }else{
-          s_cam.SetModelViewMatrix(pangolin::ModelViewLookAtRDF(initCam[0]+(j+1.f)/100.f,initCam[1],initCam[2],
-                                                                initCam[3]+(j+1.f)/100.f,initCam[4],initCam[5],
-                                                                0, 0, 1));
-        }
+        s_cam.SetModelViewMatrix(pangolin::ModelViewLookAtRDF(initCam[0]+(j+1.f)/100.f,initCam[1],initCam[2],
+                                                              initCam[3]+(j+1.f)/100.f,initCam[4],initCam[5],
+                                                              0, 0, 1));
+        
     }
 
     std::cout << "\rRendering spot " << j << "/" << numSpots << "... done" << std::endl;
