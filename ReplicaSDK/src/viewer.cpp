@@ -4,6 +4,12 @@
 #include <pangolin/display/display.h>
 #include <pangolin/display/widgets/widgets.h>
 
+#include <pangolin/pangolin.h>
+#include <pangolin/geometry/geometry_obj.h>
+
+#include <pangolin/geometry/glgeometry.h>
+#include <math.h>
+
 #include "MirrorRenderer.h"
 
 int main(int argc, char* argv[]) {
@@ -116,6 +122,36 @@ int main(int argc, char* argv[]) {
 
   ptexMesh.SetExposure(exposure);
 
+  // Try adding the bunny mesh to the scene
+  //pangolin::Geometry bunny = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/bunny/bunny_nn.obj");
+  pangolin::Geometry bunny = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/lpshead/head.obj");
+  //pangolin::Geometry bunny = pangolin::LoadGeometry("/home/eleanor/Replica-Dataset/data/bunny/nonbinary-bunny.ply");
+  pangolin::GlGeometry bunnyGL = pangolin::ToGlGeometry(bunny);
+
+
+  // Define shader options
+  enum class RenderMode { uv=0, tex, color, normal, matcap, vertex, num_modes };
+  const std::string mode_names[] = {"SHOW_UV", "SHOW_TEXTURE", "SHOW_COLOR", "SHOW_NORMAL", "SHOW_MATCAP", "SHOW_VERTEX"};
+  std::map<std::string,std::string> prog_defines;
+  for(int i=0; i < (int)RenderMode::num_modes-1; ++i) {
+      prog_defines[mode_names[i]] = std::to_string((int)RenderMode::tex == i);
+  }
+
+  // Load shader for bunny
+  pangolin::GlSlProgram shader = pangolin::GlSlProgram();
+  shader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/modelviewer.vert", {prog_defines}, {shadir});
+  shader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/modelviewer.frag", {prog_defines}, {shadir});
+  shader.Link();
+
+  // Initialize bunny position
+  // Translate: x,y,z
+  // Rotate: angle,x,y,z, with x,y,z in [0,1]
+  float translation[] = {0,0,0};
+  float rotation[] = {0,0,1,0}; 
+  float deltaT = 0.01;
+  float deltaR = 0.01; //in degrees :(
+  int frames = 0;
+
   while (!pangolin::ShouldQuit()) {
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
@@ -157,7 +193,7 @@ int main(int argc, char* argv[]) {
         render.Download(image.ptr, GL_RGB, GL_UNSIGNED_BYTE);
 
         char cmapFilename[1000];
-        snprintf(cmapFilename, 1000, "/home/selenaling/Desktop/Replica-Dataset/build/ReplicaSDK/renderFromViewer.png");
+        snprintf(cmapFilename, 1000, "/home/eleanor/Replica-Dataset/output/renderFromViewer.png");
 
         pangolin::SaveImage(
             image.UnsafeReinterpret<uint8_t>(),
@@ -178,10 +214,72 @@ int main(int argc, char* argv[]) {
         glDisable(GL_POLYGON_OFFSET_FILL);
         // render wireframe on top
         ptexMesh.RenderWireframe(s_cam);
-      } else if (drawDepth) {
+      } 
+      else if (drawDepth) {
         ptexMesh.RenderDepth(s_cam, depthScale);
-      } else {
+      } 
+      else {
+
+        glPushMatrix();
+        glScalef(1,1,1);
+        //glTranslatef(translation[0], translation[1], translation[2]);
+        //glRotatef(rotation[0],rotation[1],rotation[2],rotation[3]);
+ 
+
+        const pangolin::OpenGlMatrix camMVGL = s_cam.GetModelViewMatrix();
+        const Eigen::Matrix<float,4,4> camMV = pangolin::ToEigen<float>( camMVGL );
+
+        const pangolin::OpenGlMatrix camKGL = s_cam.GetProjectionMatrix();
+        const Eigen::Matrix<float,4,4> camK = pangolin::ToEigen<float>( camKGL );
+
+        Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
+        objMV(0,0) = 1;   objMV(0,1) = 0;                 objMV(0,2) = 0;                   objMV(0,3) = translation[0];
+        objMV(1,0) = 0;   objMV(1,1) = cos(rotation[0]);  objMV(1,2) = -sin(rotation[0]);   objMV(1,3) = translation[1];
+        objMV(2,0) = 0;   objMV(2,1) = sin(rotation[0]);  objMV(2,2) = cos(rotation[0]);    objMV(2,3) = translation[2];
+        objMV(3,0) = 0;   objMV(3,1) = 0;                 objMV(3,2) = 0;                   objMV(3,3) = 1;
+
+        // Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
+        // objMV(0,0) = 1;   objMV(0,1) = 0;                 objMV(0,2) = 0;                   objMV(0,3) = 0;
+        // objMV(1,0) = 0;   objMV(1,1) = 1;                 objMV(1,2) = 0;                   objMV(1,3) = 0;
+        // objMV(2,0) = 0;   objMV(2,1) = 0;                 objMV(2,2) = 1;                   objMV(2,3) = 0;
+        // objMV(3,0) = 0;   objMV(3,1) = 0;                 objMV(3,2) = 0;                   objMV(3,3) = 1;
+
+        // Eigen::Matrix<float,4,4> objMV = Eigen::Matrix<float,4,4>();
+        // objMV(0,0) = 1;   objMV(1,0) = 0;                 objMV(2,0) = 0;                   objMV(3,0) = translation[0];
+        // objMV(0,1) = 0;   objMV(1,1) = cos(rotation[0]);  objMV(2,1) = -sin(rotation[0]);   objMV(3,1) = translation[1];
+        // objMV(0,2) = 0;   objMV(1,2) = sin(rotation[0]);  objMV(2,2) = cos(rotation[0]);    objMV(3,2) = translation[2];
+        // objMV(0,3) = 0;   objMV(1,3) = 0;                 objMV(2,3) = 0;                   objMV(3,3) = 1;
+
+        const Eigen::Matrix<float,4,4> res1 = camMV * objMV;
+        const pangolin::OpenGlMatrix objCamMV = pangolin::OpenGlMatrix( res1 );
+        const Eigen::Matrix<float,4,4> res2 = camK * camMV * objMV;
+        const pangolin::OpenGlMatrix objCamKMV = pangolin::OpenGlMatrix( res2 );
+
+        //pangolin::glDrawColouredCube(-0.5f,0.5f);
+        shader.Bind();
+        shader.SetUniform("T_cam_norm", objCamMV );
+        shader.SetUniform("KT_cw", objCamKMV );
+        //shader.SetUniform("T_cam_norm", s_cam.GetModelViewMatrix() );
+        //shader.SetUniform("KT_cw", s_cam.GetProjectionModelViewMatrix() );
+   	    pangolin::GlDraw(shader, bunnyGL, NULL);
+        shader.Unbind();
+        
+        
+        glPopMatrix();
+
+        // Draw scene!
         ptexMesh.Render(s_cam);
+      
+        // Modify translation and rotation by a small increment
+        translation[1] += deltaT;
+        rotation[0] += deltaR;
+        frames++;
+
+        // Pick a random axis and swap rotation on/off every 10 frames
+        if ((frames % 30) == 0){
+          deltaT *= -1;
+          deltaR = -1 * deltaR;
+        }
       }
 
       glDisable(GL_CULL_FACE);
