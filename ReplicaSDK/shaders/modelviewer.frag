@@ -1,9 +1,10 @@
-#version 120
+#version 130
 #expect SHOW_COLOR
 #expect SHOW_NORMAL
 #expect SHOW_TEXTURE
 #expect SHOW_MATCAP
 #expect SHOW_UV
+#expect SHOW_DEPTH
 
 #if SHOW_COLOR
     varying vec4 vColor;
@@ -17,6 +18,8 @@
     uniform sampler2D matcap;
 #elif SHOW_UV
     varying vec2 vUV;
+#elif SHOW_DEPTH
+    varying float depth;
 #else
     varying vec3 vP;
 #endif
@@ -33,6 +36,9 @@ void main() {
     gl_FragColor = texture2D(matcap, uv);
 #elif SHOW_UV
     gl_FragColor = vec4(vUV,1.0-vUV.x,1.0);
+#elif SHOW_DEPTH
+    float mDepth = depth * 1.0f/16.0f;
+    gl_FragColor = vec4(mDepth, mDepth, mDepth, 1.0f);
 #else
     gl_FragColor = vec4(vP / 100.0,1.0);
 #endif

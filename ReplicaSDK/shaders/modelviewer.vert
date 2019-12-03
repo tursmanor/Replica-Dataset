@@ -1,14 +1,19 @@
-#version 120
+#version 130
 
 #expect SHOW_COLOR
 #expect SHOW_NORMAL
 #expect SHOW_TEXTURE
 #expect SHOW_MATCAP
 #expect SHOW_UV
+#expect SHOW_DEPTH
 
     uniform mat4 T_cam_norm;
     uniform mat4 KT_cw;
     attribute vec3 vertex;
+    varying float depth; // to check: how to tell if in/out in v.120
+
+    uniform vec4 clipPlane;
+    vec4 position = vec4(vertex, 1.0);
 
 #if SHOW_COLOR
     attribute vec4 color;
@@ -35,10 +40,16 @@
     varying vec2 vUV;
     void main() {
         vUV = uv;
+#elif SHOW_DEPTH
+    vec4 cameraPos = T_cam_norm * position;
+    void main() {
+        depth = cameraPos.z;
+        gl_ClipDistance[0] = dot(position, clipPlane);
 #else
     varying vec3 vP;
     void main() {
         vP = vertex;
 #endif
-        gl_Position = KT_cw * vec4(vertex, 1.0);
-    }
+
+    gl_Position = KT_cw * position;
+}

@@ -64,10 +64,17 @@ PTexMesh::PTexMesh(const std::string& meshFile, const std::string& atlasFolder, 
 
   }
 
-  depthShader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-depth-spherical.vert", {}, {shadir});
-  depthShader.AddShaderFromFile(pangolin::GlSlGeometryShader, shadir + "/mesh-depth-spherical.geom", {}, {shadir});
-  depthShader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-depth.frag", {}, {shadir});
-  depthShader.Link();
+  if(renderSpherical){
+    depthShader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-depth-spherical.vert", {}, {shadir});
+    depthShader.AddShaderFromFile(pangolin::GlSlGeometryShader, shadir + "/mesh-depth-spherical.geom", {}, {shadir});
+    depthShader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-depth.frag", {}, {shadir});
+    depthShader.Link();
+  } else {
+    depthShader.AddShaderFromFile(pangolin::GlSlVertexShader, shadir + "/mesh-depth.vert", {}, {shadir});
+    depthShader.AddShaderFromFile(pangolin::GlSlGeometryShader, shadir + "/mesh-depth.geom", {}, {shadir});
+    depthShader.AddShaderFromFile(pangolin::GlSlFragmentShader, shadir + "/mesh-depth.frag", {}, {shadir});
+    depthShader.Link();
+  }
 }
 
 PTexMesh::~PTexMesh() {}
@@ -175,8 +182,10 @@ void PTexMesh::RenderSubMeshDepth(
     depthShader.SetUniform("MV", cam.GetModelViewMatrix());
     depthShader.SetUniform("clipPlane", clipPlane(0), clipPlane(1), clipPlane(2), clipPlane(3));
     depthShader.SetUniform("scale", depthScale);
-    depthShader.SetUniform("baseline", baseline);
-    depthShader.SetUniform("leftRight", lrC);
+    if( renderSpherical ) {
+      depthShader.SetUniform("baseline", baseline);
+      depthShader.SetUniform("leftRight", lrC);
+    }
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, mesh.abo.bo);
     mesh.vbo.Bind();
