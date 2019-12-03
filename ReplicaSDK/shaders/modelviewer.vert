@@ -10,8 +10,7 @@
     uniform mat4 T_cam_norm;
     uniform mat4 KT_cw;
     attribute vec3 vertex;
-    varying float depth; // to check: how to tell if in/out in v.120
-
+    varying float depth; 
     uniform vec4 clipPlane;
     vec4 position = vec4(vertex, 1.0);
 

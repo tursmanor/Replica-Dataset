@@ -5,6 +5,7 @@
 #expect SHOW_MATCAP
 #expect SHOW_UV
 #expect SHOW_DEPTH
+#expect SHOW_BINARY
 
 #if SHOW_COLOR
     varying vec4 vColor;
@@ -39,6 +40,8 @@ void main() {
 #elif SHOW_DEPTH
     float mDepth = depth * 1.0f/16.0f;
     gl_FragColor = vec4(mDepth, mDepth, mDepth, 1.0f);
+#elif SHOW_BINARY
+    gl_FragColor = vec4(1.0f,1.0f,1.0f,1.0f); // Make the mesh/foreground white
 #else
     gl_FragColor = vec4(vP / 100.0,1.0);
 #endif
