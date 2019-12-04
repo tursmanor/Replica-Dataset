@@ -163,10 +163,10 @@ int main(int argc, char* argv[]) {
   // Machine specific output paths: room name, output save locations, mesh location
   char roomName[10];  char imageOut[1000];  char depthOut[1000]; char paramOut[1000]; char binaryOut[1000];
   strcpy(roomName, meshFile.substr(7,meshFile.length()-16).c_str());	
-  strcpy(imageOut, "/home/eleanor/Replica-Dataset/Output/images-path1/%s-%04zu.jpeg");
-  strcpy(depthOut, "/home/eleanor/Replica-Dataset/Output/depths-path1/%s-%04zu.pfm");
-  strcpy(paramOut, "/home/eleanor/Replica-Dataset/Output/params-path1.txt");
-  strcpy(binaryOut, "/home/eleanor/Replica-Dataset/Output/binary-path1/%s-%04zu.jpeg");
+  strcpy(imageOut, "/home/eleanor/Replica-Dataset/Output/images/%s-%04zu.jpeg");
+  strcpy(depthOut, "/home/eleanor/Replica-Dataset/Output/depths/%s-%04zu.pfm");
+  strcpy(paramOut, "/home/eleanor/Replica-Dataset/Output/params.txt");
+  strcpy(binaryOut, "/home/eleanor/Replica-Dataset/Output/binary/%s-%04zu.jpeg");
   std::string meshPath =  "/home/eleanor/Replica-Dataset/data/lpshead/head.obj";
 
   // Setup EGL
