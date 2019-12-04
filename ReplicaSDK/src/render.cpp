@@ -348,12 +348,12 @@ int main(int argc, char* argv[]) {
       Eigen::Matrix4d T_camera_world = s_cam.GetModelViewMatrix();
       std::vector<float> camPostoSave;
 
-      // Get extrinsics
+      // Get camera world position
       camPostoSave.push_back(cameraPos[frames][0]);
       camPostoSave.push_back(cameraPos[frames][1]);
       camPostoSave.push_back(cameraPos[frames][2]);
 
-      // Get intrinsics
+      // Get extrinsics
       for(int r = 0; r<4; r++){
         for(int c = 0; c<4; c++){
           camPostoSave.push_back(T_camera_world(r,c));
@@ -363,6 +363,10 @@ int main(int argc, char* argv[]) {
       // Get principal point 
       camPostoSave.push_back(width/2);
       camPostoSave.push_back(height/2);
+
+      // Get focal length (as set in the declaration of s_cam)
+      // F_x = F_y 
+      camPostoSave.push_back(width/2);
 
       // Open new file and append to a new line for each new frame
       std::ofstream myfile(paramOut,std::ios_base::app);
