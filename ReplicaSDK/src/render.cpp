@@ -4,6 +4,7 @@
 #include <string>
 #include <pangolin/image/image_convert.h>
 #include <pangolin/image/image_io.h>
+#include <pangolin/image/managed_image.h>
 
 #include <Eigen/Geometry>
 #include "MirrorRenderer.h"
@@ -88,6 +89,56 @@ void getMeshTransformationMatrices(pangolin::OpenGlRenderState s_cam, float head
 
 }
 
+// Largely taken from PFM_ReadWrite repo on github
+// Assumes grayscale input
+void saveDepthAsPFM(pangolin::Image<Eigen::Matrix<uint8_t, 3, 1>> image, const std::string path) {
+
+  std::ofstream imageFile(path.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
+
+  if(imageFile) {
+
+    int width = image.w;
+    int height = image.h;
+    int numChannels = 1;    // Only one channel bc depth is grayscale
+
+    // Write header
+    char type[3];
+    type[0] = 'P';
+    type[1] = 'f';
+    type[2] = 0x0a;
+    imageFile << type[0] << type[1] << type[2];
+
+    // Write width and height
+    imageFile << width << " " << height << type[2];
+
+    //Assumes little endian storage and ends with a line return 0x0a; stores the type
+    char byteOrder[10];
+    byteOrder[0] = '-'; byteOrder[1] = '1'; byteOrder[2] = '.'; byteOrder[3] = '0';
+    byteOrder[4] = '0'; byteOrder[5] = '0'; byteOrder[6] = '0'; byteOrder[7] = '0';
+    byteOrder[8] = '0'; byteOrder[9] = 0x0a;
+
+    for(int i = 0; i < 10; ++i){
+      imageFile << byteOrder[i];
+    }
+
+    float* buffer = new float[numChannels];
+
+        for(int i = 0 ; i < height ; ++i) {
+            for(int j = 0 ; j < width ; ++j) {
+                buffer[0] = image(j,height-1-i)[0];
+                imageFile.write((char *) buffer, numChannels*sizeof(float));
+            }
+        }
+
+        delete[] buffer;
+
+        imageFile.close();
+
+  } else {
+    std::cerr << "Could not open file for pfm conversion" << std::endl;
+  }
+}
+
 /***********
   Main
  **********/
@@ -113,7 +164,7 @@ int main(int argc, char* argv[]) {
   char roomName[10];  char imageOut[1000];  char depthOut[1000]; char paramOut[1000]; char binaryOut[1000];
   strcpy(roomName, meshFile.substr(7,meshFile.length()-16).c_str());	
   strcpy(imageOut, "/home/eleanor/Replica-Dataset/Output/images-path1/%s-%04zu.jpeg");
-  strcpy(depthOut, "/home/eleanor/Replica-Dataset/Output/depths-path1/%s-%04zu.exr");
+  strcpy(depthOut, "/home/eleanor/Replica-Dataset/Output/depths-path1/%s-%04zu.pfm");
   strcpy(paramOut, "/home/eleanor/Replica-Dataset/Output/params-path1.txt");
   strcpy(binaryOut, "/home/eleanor/Replica-Dataset/Output/binary-path1/%s-%04zu.jpeg");
   std::string meshPath =  "/home/eleanor/Replica-Dataset/data/lpshead/head.obj";
@@ -285,10 +336,11 @@ int main(int argc, char* argv[]) {
 
       char filename[1000];
       snprintf(filename, 1000, depthOut, roomName, j);
-      pangolin::SaveImage(
-          depthImage.UnsafeReinterpret<uint8_t>(),
-          pangolin::PixelFormatFromString("RGB24"),
-          std::string(filename));
+      saveDepthAsPFM(depthImage, filename);
+      //pangolin::SaveImage(
+      //    depthImage.UnsafeReinterpret<uint8_t>(),
+      //    pangolin::PixelFormatFromString("RGB24"),
+      //    std::string(filename));
     }
  
     // Parameter output  
