@@ -91,7 +91,7 @@ void getMeshTransformationMatrices(pangolin::OpenGlRenderState s_cam, float head
 
 // Largely taken from PFM_ReadWrite repo on github
 // Assumes grayscale input
-void saveDepthAsPFM(pangolin::Image<Eigen::Matrix<uint8_t, 3, 1>> image, const std::string path) {
+void saveDepthAsPFM(pangolin::Image<float> image, const std::string path) {
 
   std::ofstream imageFile(path.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
 
@@ -99,8 +99,7 @@ void saveDepthAsPFM(pangolin::Image<Eigen::Matrix<uint8_t, 3, 1>> image, const s
 
     int width = image.w;
     int height = image.h;
-    int numChannels = 1;    // Only one channel bc depth is grayscale
-
+ 
     // Write header
     char type[3];
     type[0] = 'P';
@@ -121,18 +120,18 @@ void saveDepthAsPFM(pangolin::Image<Eigen::Matrix<uint8_t, 3, 1>> image, const s
       imageFile << byteOrder[i];
     }
 
-    float* buffer = new float[numChannels];
+    for(int i = 0 ; i < height ; ++i) {
+      for(int j = 0 ; j < width ; ++j) {
+        imageFile.write((char*)&image(j,height-1-i), sizeof(float));
+        //std::cout << image(j,height-1-i) << std::endl;
+        //imageFile << image(j,height-1-i);
+        //imageFile << " ";
+      }
+    } 
 
-        for(int i = 0 ; i < height ; ++i) {
-            for(int j = 0 ; j < width ; ++j) {
-                buffer[0] = image(j,height-1-i)[0];
-                imageFile.write((char *) buffer, numChannels*sizeof(float));
-            }
-        }
-
-        delete[] buffer;
-
-        imageFile.close();
+    //imageFile.write((char*)&image, width * height * sizeof(float));
+   
+    imageFile.close();
 
   } else {
     std::cerr << "Could not open file for pfm conversion" << std::endl;
@@ -179,7 +178,8 @@ int main(int argc, char* argv[]) {
   pangolin::GlRenderBuffer renderBuffer(width, height);
   pangolin::GlFramebuffer frameBuffer(render, renderBuffer);
 
-  pangolin::GlTexture depthTexture(width, height);
+  //pangolin::GlTexture depthTexture(width, height);
+  pangolin::GlTexture depthTexture(width,height,GL_R32F,false,0,GL_RED,GL_FLOAT,0);
   pangolin::GlFramebuffer depthFrameBuffer(depthTexture, renderBuffer);
 
   pangolin::GlTexture binaryTexture(width,height);
@@ -259,7 +259,8 @@ int main(int argc, char* argv[]) {
 
   // Initialize output images
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> image(width, height);
-  pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> depthImage(width, height);
+ //pangolin::ManagedImage<Eigen::Matrix<float, 3, 1>> depthImage(width, height);
+  pangolin::ManagedImage<float> depthImage(width,height);
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> binaryImage(width, height);  
 
   // For rendering videos
@@ -332,15 +333,15 @@ int main(int argc, char* argv[]) {
 
       depthFrameBuffer.Unbind();
       
-      depthTexture.Download(depthImage.ptr, GL_RGB, GL_UNSIGNED_BYTE);
+      depthTexture.Download(depthImage.ptr, GL_RED, GL_FLOAT);
 
       char filename[1000];
       snprintf(filename, 1000, depthOut, roomName, j);
       saveDepthAsPFM(depthImage, filename);
-      //pangolin::SaveImage(
-      //    depthImage.UnsafeReinterpret<uint8_t>(),
-      //    pangolin::PixelFormatFromString("RGB24"),
-      //    std::string(filename));
+      //pangolin::SaveImage(depthImage.UnsafeReinterpret<uint8_t>(), 
+      //            pangolin::PixelFormatFromString("GRAY32F"),
+      //            std::string(filename), pangolin::ImageFileTypeExr, true, 34.0f);
+
     }
  
     // Parameter output  

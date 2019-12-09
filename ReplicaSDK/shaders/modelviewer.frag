@@ -38,7 +38,8 @@ void main() {
 #elif SHOW_UV
     gl_FragColor = vec4(vUV,1.0-vUV.x,1.0);
 #elif SHOW_DEPTH
-    float mDepth = depth * 1.0f/16.0f;
+    //float mDepth = depth * 1.0f/16.0f;
+    float mDepth = depth;
     gl_FragColor = vec4(mDepth, mDepth, mDepth, 1.0f);
 #elif SHOW_BINARY
     gl_FragColor = vec4(1.0f,1.0f,1.0f,1.0f); // Make the mesh/foreground white
