@@ -17,6 +17,8 @@
 #include<pangolin/geometry/geometry.h>
 #include<pangolin/geometry/glgeometry.h>
 
+#include </home/eleanor/Replica-Dataset/3rdparty/nlohmann_json/single_include/nlohmann/json.hpp>
+
 using namespace std::chrono;
 
 // Type definition for shader options
@@ -44,7 +46,7 @@ pangolin::GlSlProgram loadMeshShaders(const std::string shadir, RenderType mode)
 }
 
 // Scale, rotate, and translate the mesh by a set of parameters
-void getMeshTransformationMatrices(pangolin::OpenGlRenderState s_cam, float headRot, float scaleFactor, float rotation, float translation[], 
+void getMeshTransformationMatrices(pangolin::OpenGlRenderState s_cam, float headRot, float scaleFactor, float rotation, std::array<float,3> translation, 
                                    pangolin::OpenGlMatrix* objCamMV, pangolin::OpenGlMatrix* objCamKMV){
   // Add dynamic mesh to render
   const pangolin::OpenGlMatrix camMVGL = s_cam.GetModelViewMatrix();
@@ -123,14 +125,9 @@ void saveDepthAsPFM(pangolin::Image<float> image, const std::string path) {
     for(int i = 0 ; i < height ; ++i) {
       for(int j = 0 ; j < width ; ++j) {
         imageFile.write((char*)&image(j,height-1-i), sizeof(float));
-        //std::cout << image(j,height-1-i) << std::endl;
-        //imageFile << image(j,height-1-i);
-        //imageFile << " ";
       }
     } 
 
-    //imageFile.write((char*)&image, width * height * sizeof(float));
-   
     imageFile.close();
 
   } else {
@@ -148,25 +145,48 @@ int main(int argc, char* argv[]) {
   const std::string meshFile(argv[1]);
   const std::string atlasFolder(argv[2]);
   const std::string cameraPathFile(argv[4]);
+  const std::string meshPath(argv[5]);
+  const std::string configPath(argv[6]);
+
+  std::cout << meshFile << std::endl;
   ASSERT(pangolin::FileExists(meshFile));
   ASSERT(pangolin::FileExists(atlasFolder));
   ASSERT(pangolin::FileExists(cameraPathFile));
+  ASSERT(pangolin::FileExists(meshPath));
+  ASSERT(pangolin::FileExists(configPath));
 
-  int width = 1920;
-  int height = 1080;
+  // Load configuration json file
+  std::ifstream input(configPath);
+  nlohmann::json settings = nlohmann::json::parse(input);    
 
-  bool renderDepth = true;
-  bool saveParameter = true;
-  bool renderBinaryMap = true;
+  int width = settings["width"];
+  int height = settings["height"];
+
+  bool renderDepth = settings["renderDepth"];
+  bool saveParameter = settings["saveParameter"];
+  bool renderBinaryMap = settings["renderBinaryMap"];
+
+  // Initialize dynamic mesh position
+  // Translate: x,y,z
+  // Rotate: angle,x,y,z, with x,y,z in [0,1]
+  std::array<float,3> translation = settings["translation"];
+  float rotation = settings["rotation"]; 
+  float headRot = settings["headRot"];
+  float scaleFactor = settings["scaleFactor"]; //for room_1: face = 2, triceratops = 0.05, sword = 
+  float deltaT = settings["deltaT"];
+  float deltaR = settings["deltaR"]; //in radians
+
+  std::string room = settings["roomName"];  
+  int numSpots = settings["numSpots"];
+
 
   // Machine specific output paths: room name, output save locations, mesh location
-  char roomName[10];  char imageOut[1000];  char depthOut[1000]; char paramOut[1000]; char binaryOut[1000];
-  strcpy(roomName, meshFile.substr(7,meshFile.length()-16).c_str());	
+  char roomName[100];  char imageOut[1000];  char depthOut[1000]; char paramOut[1000]; char binaryOut[1000];
+  strcpy(roomName, room.c_str());	
   strcpy(imageOut, "/home/eleanor/Replica-Dataset/Output/images/%s-%04zu.jpeg");
   strcpy(depthOut, "/home/eleanor/Replica-Dataset/Output/depths/%s-%04zu.pfm");
   strcpy(paramOut, "/home/eleanor/Replica-Dataset/Output/params.txt");
   strcpy(binaryOut, "/home/eleanor/Replica-Dataset/Output/binary/%s-%04zu.jpeg");
-  std::string meshPath =  "/home/eleanor/Replica-Dataset/data/lpshead/head.obj";
 
   // Setup EGL
   EGLCtx egl;
@@ -178,7 +198,6 @@ int main(int argc, char* argv[]) {
   pangolin::GlRenderBuffer renderBuffer(width, height);
   pangolin::GlFramebuffer frameBuffer(render, renderBuffer);
 
-  //pangolin::GlTexture depthTexture(width, height);
   pangolin::GlTexture depthTexture(width,height,GL_R32F,false,0,GL_RED,GL_FLOAT,0);
   pangolin::GlFramebuffer depthFrameBuffer(depthTexture, renderBuffer);
 
@@ -247,24 +266,12 @@ int main(int argc, char* argv[]) {
   pangolin::GlSlProgram shaderDepth = loadMeshShaders(shadir, type2);
   pangolin::GlSlProgram shaderBinary = loadMeshShaders(shadir, type3);
 
-  // Initialize face position in room_1
-  // Translate: x,y,z
-  // Rotate: angle,x,y,z, with x,y,z in [0,1]
-  float translation[] = {-1.7,.1,0.2};
-  float rotation = M_PI/4; 
-  float headRot = M_PI/2;
-  float scaleFactor = 2;
-  float deltaT = 0.001;
-  float deltaR = 0.005; //in radians
-
   // Initialize output images
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> image(width, height);
- //pangolin::ManagedImage<Eigen::Matrix<float, 3, 1>> depthImage(width, height);
   pangolin::ManagedImage<float> depthImage(width,height);
   pangolin::ManagedImage<Eigen::Matrix<uint8_t, 3, 1>> binaryImage(width, height);  
 
   // For rendering videos
-  int numSpots = 200;
   for(int j = 0; j < numSpots; j++){
 
     frameBuffer.Bind();
@@ -338,9 +345,6 @@ int main(int argc, char* argv[]) {
       char filename[1000];
       snprintf(filename, 1000, depthOut, roomName, j);
       saveDepthAsPFM(depthImage, filename);
-      //pangolin::SaveImage(depthImage.UnsafeReinterpret<uint8_t>(), 
-      //            pangolin::PixelFormatFromString("GRAY32F"),
-      //            std::string(filename), pangolin::ImageFileTypeExr, true, 34.0f);
 
     }
  

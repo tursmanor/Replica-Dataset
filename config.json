@@ -1,0 +1,19 @@
+{
+	"width": 1920,
+	"height": 1080,
+
+	"renderDepth": false,
+	"saveParameter": false,
+	"renderBinaryMap": false,
+	"roomName": "room_1",
+
+	"translation": [-1.7, 0.1, 0.2],
+	"rotation": 0.785398,
+	"headRot": 1.570796,
+	"scaleFactor": 2,
+	"deltaT": 0.001,
+	"deltaR": 0.005,
+
+	"numSpots": 200
+
+}

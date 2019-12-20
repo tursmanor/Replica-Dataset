@@ -7,6 +7,12 @@ cd build
 cmake ..
 make -j
 
+cd ../../nlohmann_json
+mkdir build
+cd build
+cmake ..
+make -j
+
 cd ../../../
 mkdir build
 cd build
